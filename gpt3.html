@@ -1,0 +1,2806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ESP32 BLE 图片发送工具</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 20px;
+    background: #f2f4f7;
+    color: #222;
+    font-family:
+        "Microsoft YaHei",
+        "Segoe UI",
+        Arial,
+        sans-serif;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+}
+
+h1 {
+    margin: 0 0 8px 0;
+    font-size: 28px;
+}
+
+.subtitle {
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.card h2 {
+    margin-top: 0;
+    font-size: 19px;
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.field label {
+    font-size: 13px;
+    color: #666;
+}
+
+input,
+select,
+button {
+    font-size: 15px;
+}
+
+input,
+select {
+    padding: 9px 10px;
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    background: white;
+}
+
+input[type="number"] {
+    width: 120px;
+}
+
+button {
+    border: none;
+    border-radius: 7px;
+    padding: 10px 16px;
+    cursor: pointer;
+    background: #1677ff;
+    color: white;
+    font-weight: 600;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.btn-green {
+    background: #16a34a;
+}
+
+.btn-red {
+    background: #dc2626;
+}
+
+.btn-gray {
+    background: #666;
+}
+
+.btn-orange {
+    background: #ea580c;
+}
+
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 20px;
+    background: #eee;
+    font-size: 14px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #999;
+}
+
+.dot.green {
+    background: #16a34a;
+}
+
+.dot.red {
+    background: #dc2626;
+}
+
+.device-info {
+    margin-top: 15px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.info-item {
+    background: #f6f7f9;
+    padding: 10px 12px;
+    border-radius: 7px;
+}
+
+.info-label {
+    font-size: 12px;
+    color: #777;
+}
+
+.info-value {
+    margin-top: 4px;
+    font-family: Consolas, monospace;
+    word-break: break-all;
+}
+
+.preview-container {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.preview-box {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    background: #fafafa;
+}
+
+.preview-box canvas {
+    display: block;
+    max-width: 400px;
+    max-height: 400px;
+    width: auto;
+    height: auto;
+    image-rendering: pixelated;
+    border: 1px solid #bbb;
+}
+
+.progress-container {
+    margin-top: 15px;
+}
+
+.progress-bg {
+    width: 100%;
+    height: 22px;
+    background: #ddd;
+    border-radius: 11px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: #1677ff;
+    transition: width 0.15s;
+}
+
+.progress-text {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #666;
+}
+
+.log {
+    background: #111;
+    color: #ddd;
+    border-radius: 8px;
+    padding: 12px;
+    height: 320px;
+    overflow-y: auto;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.log .success {
+    color: #00ff66;
+}
+
+.log .error {
+    color: #ff5555;
+}
+
+.log .warn {
+    color: #ffaa00;
+}
+
+.log .info {
+    color: #55aaff;
+}
+
+.protocol {
+    background: #f7f7f7;
+    padding: 12px;
+    border-radius: 7px;
+    font-family: Consolas, monospace;
+    line-height: 1.7;
+}
+
+.small {
+    font-size: 12px;
+    color: #777;
+}
+
+.uuid {
+    font-family: Consolas, monospace;
+}
+
+.warning {
+    padding: 10px;
+    background: #fff7ed;
+    border-left: 4px solid #ea580c;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.success-box {
+    padding: 10px;
+    background: #ecfdf5;
+    border-left: 4px solid #16a34a;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+@media (max-width: 700px) {
+    body {
+        padding: 10px;
+    }
+
+    .card {
+        padding: 14px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>ESP32 BLE 图片发送工具</h1>
+
+<div class="subtitle">
+    Web Bluetooth · 图片取模 · BLE 分包发送 · ACK / Rec_Full
+</div>
+
+
+<!-- ========================================================= -->
+<!-- BLE连接 -->
+<!-- ========================================================= -->
+
+<div class="card">
+
+<h2>① 蓝牙连接</h2>
+
+<div class="row">
+
+    <button id="btnScan" onclick="scanAndConnect()">
+        🔍 扫描并连接
+    </button>
+
+    <button
+        id="btnDisconnect"
+        class="btn-red"
+        onclick="disconnectDevice()"
+        disabled>
+        断开
+    </button>
+
+    <span class="status">
+        <span id="statusDot" class="dot"></span>
+        <span id="statusText">未连接</span>
+    </span>
+
+</div>
+
+
+<div class="device-info">
+
+    <div class="info-item">
+        <div class="info-label">设备名称</div>
+        <div class="info-value" id="deviceName">-</div>
+    </div>
+
+    <div class="info-item">
+        <div class="info-label">设备 ID</div>
+        <div class="info-value" id="deviceId">-</div>
+    </div>
+
+    <div class="info-item">
+        <div class="info-label">GATT</div>
+        <div class="info-value" id="gattStatus">-</div>
+    </div>
+
+</div>
+
+
+<div class="success-box">
+
+    <b>当前扫描方式：</b>
+
+    <code>acceptAllDevices: true</code>
+
+    <br>
+
+    不再使用 Service UUID 过滤设备，因此即使 EEE0
+    没有出现在广播包中，也可以先找到 ESP32，再连接后寻找 EEE0。
+
+</div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- UUID -->
+<!-- ========================================================= -->
+
+<div class="card">
+
+<h2>② BLE UUID</h2>
+
+<div class="protocol">
+
+    Service：
+    <span class="uuid">0000eee0-0000-1000-8000-00805f9b34fb</span>
+    <br>
+
+    RX：
+    <span class="uuid">0000eee1-0000-1000-8000-00805f9b34fb</span>
+    <br>
+
+    TX：
+    <span class="uuid">0000eee2-0000-1000-8000-00805f9b34fb</span>
+    <br>
+
+    Indicate：
+    <span class="uuid">0000eee3-0000-1000-8000-00805f9b34fb</span>
+    <br>
+
+    Notify：
+    <span class="uuid">0000eee4-0000-1000-8000-00805f9b34fb</span>
+
+</div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- 图片 -->
+<!-- ========================================================= -->
+
+<div class="card">
+
+<h2>③ 图片</h2>
+
+<div class="row">
+
+    <div class="field">
+        <label>选择图片</label>
+        <input
+            type="file"
+            id="imageFile"
+            accept="image/*"
+            onchange="loadImage()">
+    </div>
+
+    <div class="field">
+        <label>宽度</label>
+        <input
+            type="number"
+            id="imageWidth"
+            value="250"
+            min="1"
+            max="4096">
+    </div>
+
+    <div class="field">
+        <label>高度</label>
+        <input
+            type="number"
+            id="imageHeight"
+            value="122"
+            min="1"
+            max="4096">
+    </div>
+
+    <div class="field">
+        <label>位深</label>
+        <select id="bitDepth">
+            <option value="1">1 bit</option>
+            <option value="2">2 bit</option>
+            <option value="4">4 bit</option>
+            <option value="8">8 bit</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label>取模方式</label>
+        <select id="bitOrder">
+            <option value="msb">MSB First</option>
+            <option value="lsb">LSB First</option>
+        </select>
+    </div>
+
+</div>
+
+
+<div class="row" style="margin-top:15px;">
+
+    <button
+        class="btn-green"
+        onclick="convertImage()">
+        🖼️ 生成取模数据
+    </button>
+
+</div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- 图片预览 -->
+<!-- ========================================================= -->
+
+<div class="card">
+
+<h2>④ 图片预览</h2>
+
+<div class="preview-container">
+
+    <div class="preview-box">
+
+        <div class="small">
+            原图
+        </div>
+
+        <canvas id="originalCanvas"></canvas>
+
+    </div>
+
+
+    <div class="preview-box">
+
+        <div class="small">
+            取模预览
+        </div>
+
+        <canvas id="previewCanvas"></canvas>
+
+    </div>
+
+</div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- 数据 -->
+<!-- ========================================================= -->
+
+<div class="card">
+
+<h2>⑤ 数据参数</h2>
+
+<div class="protocol">
+
+    图片尺寸：
+    <b id="showSize">-</b>
+
+    <br>
+
+    位深：
+    <b id="showBitDepth">-</b>
+
+    <br>
+
+    图片数据大小：
+    <b id="showDataSize">-</b>
+
+    Bytes
+
+    <br>
+
+    BLE 每包图片数据：
+    <b id="showPackSize">120</b>
+
+    Bytes
+
+    <br>
+
+    数据包数量：
+    <b id="showPacketTotal">-</b>
+
+</div>
+
+
+<div class="warning">
+
+    ESP32 当前协议：
+
+    <br>
+
+    <code>
+    packet index = 2 Bytes
+    <br>
+    packet size  = 2 Bytes
+    <br>
+    image data   = N Bytes
+    </code>
+
+    <br><br>
+
+    因为 ESP32 使用：
+
+    <br>
+
+    <code>
+    offset = pack_index * pack_size
+    </code>
+
+    所以网页端固定每包图片数据为
+    <b>120 Bytes</b>，最后一包自动补 0。
+
+</div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- 发送 -->
+<!-- ========================================================= -->
+
+<div class="card">
+
+<h2>⑥ 发送图片</h2>
+
+<div class="row">
+
+    <button
+        id="btnSend"
+        class="btn-green"
+        onclick="sendImage()"
+        disabled>
+        🚀 发送图片
+    </button>
+
+    <button
+        id="btnStop"
+        class="btn-red"
+        onclick="stopSend()"
+        disabled>
+        ⛔ 停止
+    </button>
+
+</div>
+
+
+<div class="progress-container">
+
+    <div class="progress-bg">
+
+        <div
+            class="progress-bar"
+            id="progressBar">
+        </div>
+
+    </div>
+
+    <div
+        class="progress-text"
+        id="progressText">
+        0 / 0
+    </div>
+
+</div>
+
+</div>
+
+
+<!-- ========================================================= -->
+<!-- 日志 -->
+<!-- ========================================================= -->
+
+<div class="card">
+
+<h2>⑦ 日志</h2>
+
+<div
+    class="log"
+    id="log">
+</div>
+
+<br>
+
+<button
+    class="btn-gray"
+    onclick="clearLog()">
+    清空日志
+</button>
+
+</div>
+
+</div>
+
+
+<script>
+
+/* ============================================================
+ * UUID
+ * ============================================================ */
+
+const SERVICE_UUID =
+    "0000eee0-0000-1000-8000-00805f9b34fb";
+
+const RX_UUID =
+    "0000eee1-0000-1000-8000-00805f9b34fb";
+
+const TX_UUID =
+    "0000eee2-0000-1000-8000-00805f9b34fb";
+
+const INDICATE_UUID =
+    "0000eee3-0000-1000-8000-00805f9b34fb";
+
+const NOTIFY_UUID =
+    "0000eee4-0000-1000-8000-00805f9b34fb";
+
+
+/*
+ * ESP32 当前每包图片数据大小
+ *
+ * 注意：
+ *
+ * BLE ATT MTU 如果是 128：
+ *
+ * 最大 ATT payload = 125
+ *
+ * 4字节 packet header
+ *
+ * 125 - 4 = 121
+ *
+ * 这里使用 120，留一点余量。
+ */
+const PACK_DATA_SIZE = 120;
+
+
+/*
+ * ACK 超时时间
+ */
+const ACK_TIMEOUT = 5000;
+
+
+/* ============================================================
+ * BLE变量
+ * ============================================================ */
+
+let bluetoothDevice = null;
+
+let gattServer = null;
+
+let bleService = null;
+
+let rxCharacteristic = null;
+
+let txCharacteristic = null;
+
+let indicateCharacteristic = null;
+
+let notifyCharacteristic = null;
+
+
+/* ============================================================
+ * 图片变量
+ * ============================================================ */
+
+let originalImage = null;
+
+let imageDataBuffer = null;
+
+let imageWidth = 0;
+
+let imageHeight = 0;
+
+let imageBitDepth = 1;
+
+
+/* ============================================================
+ * 发送状态
+ * ============================================================ */
+
+let sending = false;
+
+let stopRequested = false;
+
+let packetTotal = 0;
+
+let currentPacket = 0;
+
+
+/*
+ * ACK状态
+ *
+ * 例如：
+ *
+ * ESP32 -> ACK+15
+ *
+ * ackValue = 15
+ */
+let ackValue = null;
+
+let recFull = false;
+
+
+/* ============================================================
+ * 日志
+ * ============================================================ */
+
+function log(message, type = "") {
+
+    const logElement =
+        document.getElementById("log");
+
+    const now =
+        new Date().toLocaleTimeString();
+
+    const line =
+        document.createElement("div");
+
+    line.className = type;
+
+    line.textContent =
+        `[${now}] ${message}`;
+
+    logElement.appendChild(line);
+
+    logElement.scrollTop =
+        logElement.scrollHeight;
+}
+
+
+function clearLog() {
+
+    document.getElementById("log").innerHTML = "";
+
+}
+
+
+/* ============================================================
+ * 状态
+ * ============================================================ */
+
+function setStatus(text, state = "") {
+
+    document.getElementById("statusText")
+        .textContent = text;
+
+    const dot =
+        document.getElementById("statusDot");
+
+    dot.className = "dot";
+
+    if (state === "connected") {
+        dot.classList.add("green");
+    }
+
+    if (state === "error") {
+        dot.classList.add("red");
+    }
+}
+
+
+/* ============================================================
+ * 扫描 + 连接
+ *
+ * 关键修改：
+ *
+ * acceptAllDevices: true
+ *
+ * 不再使用：
+ *
+ * filters: [
+ *     { namePrefix: "EspBle" }
+ * ]
+ *
+ * 也不使用：
+ *
+ * filters: [
+ *     { services: [SERVICE_UUID] }
+ * ]
+ * ============================================================ */
+
+async function scanAndConnect() {
+
+    if (!navigator.bluetooth) {
+
+        alert(
+            "当前浏览器不支持 Web Bluetooth。\n" +
+            "请使用最新版 Chrome / Edge。"
+        );
+
+        return;
+    }
+
+
+    try {
+
+        setStatus("正在扫描...");
+
+        log(
+            "🔍 正在扫描 BLE 设备...",
+            "info"
+        );
+
+
+        /*
+         * 这里是解决“找不到兼容设备”的关键。
+         *
+         * 不使用 filters。
+         *
+         * optionalServices 只是告诉浏览器：
+         * 连接以后允许访问这些 Service。
+         */
+        bluetoothDevice =
+            await navigator.bluetooth.requestDevice({
+
+                acceptAllDevices: true,
+
+                optionalServices: [
+                    SERVICE_UUID
+                ]
+
+            });
+
+
+        log(
+            `✅ 找到设备：${bluetoothDevice.name || "未命名设备"}`,
+            "success"
+        );
+
+
+        document.getElementById("deviceName")
+            .textContent =
+            bluetoothDevice.name || "未命名";
+
+
+        document.getElementById("deviceId")
+            .textContent =
+            bluetoothDevice.id;
+
+
+        bluetoothDevice.addEventListener(
+            "gattserverdisconnected",
+            onDisconnected
+        );
+
+
+        setStatus("正在连接...", "");
+
+
+        await connectGatt();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        if (error.name === "NotFoundError") {
+
+            log(
+                "⚠️ 用户取消了设备选择",
+                "warn"
+            );
+
+            setStatus("未连接");
+
+        } else {
+
+            log(
+                `❌ 扫描/连接失败：${error.message}`,
+                "error"
+            );
+
+            setStatus(
+                "连接失败",
+                "error"
+            );
+        }
+    }
+}
+
+
+/* ============================================================
+ * GATT连接
+ * ============================================================ */
+
+async function connectGatt() {
+
+    log(
+        "📡 正在建立 GATT 连接...",
+        "info"
+    );
+
+
+    gattServer =
+        await bluetoothDevice.gatt.connect();
+
+
+    document.getElementById("gattStatus")
+        .textContent =
+        "已连接";
+
+
+    log(
+        "✅ GATT 连接成功",
+        "success"
+    );
+
+
+    /*
+     * 获取 EEE0
+     */
+    bleService =
+        await gattServer.getPrimaryService(
+            SERVICE_UUID
+        );
+
+
+    log(
+        "✅ 找到 Service EEE0",
+        "success"
+    );
+
+
+    /*
+     * RX
+     *
+     * 手机 -> ESP32
+     */
+    rxCharacteristic =
+        await bleService.getCharacteristic(
+            RX_UUID
+        );
+
+
+    log(
+        "✅ 找到 RX EEE1",
+        "success"
+    );
+
+
+    /*
+     * TX
+     */
+    try {
+
+        txCharacteristic =
+            await bleService.getCharacteristic(
+                TX_UUID
+            );
+
+        log(
+            "✅ 找到 TX EEE2",
+            "success"
+        );
+
+    } catch (e) {
+
+        log(
+            "⚠️ 未找到 TX EEE2",
+            "warn"
+        );
+
+    }
+
+
+    /*
+     * INDICATE
+     */
+    try {
+
+        indicateCharacteristic =
+            await bleService.getCharacteristic(
+                INDICATE_UUID
+            );
+
+        await indicateCharacteristic
+            .startNotifications();
+
+        indicateCharacteristic.addEventListener(
+            "characteristicvaluechanged",
+            onBleMessage
+        );
+
+
+        log(
+            "✅ EEE3 Indicate 已订阅",
+            "success"
+        );
+
+    } catch (e) {
+
+        log(
+            "⚠️ EEE3 Indicate 订阅失败：" +
+            e.message,
+            "warn"
+        );
+
+    }
+
+
+    /*
+     * NOTIFY
+     */
+    try {
+
+        notifyCharacteristic =
+            await bleService.getCharacteristic(
+                NOTIFY_UUID
+            );
+
+        await notifyCharacteristic
+            .startNotifications();
+
+        notifyCharacteristic.addEventListener(
+            "characteristicvaluechanged",
+            onBleMessage
+        );
+
+
+        log(
+            "✅ EEE4 Notify 已订阅",
+            "success"
+        );
+
+    } catch (e) {
+
+        log(
+            "⚠️ EEE4 Notify 订阅失败：" +
+            e.message,
+            "warn"
+        );
+
+    }
+
+
+    setStatus(
+        "已连接",
+        "connected"
+    );
+
+
+    document.getElementById("btnDisconnect")
+        .disabled = false;
+
+
+    document.getElementById("btnSend")
+        .disabled =
+        imageDataBuffer === null;
+
+
+    log(
+        "🎉 BLE 初始化完成",
+        "success"
+    );
+}
+
+
+/* ============================================================
+ * BLE断开
+ * ============================================================ */
+
+function onDisconnected() {
+
+    log(
+        "⚠️ BLE 设备已断开",
+        "warn"
+    );
+
+
+    setStatus(
+        "已断开",
+        "error"
+    );
+
+
+    document.getElementById("gattStatus")
+        .textContent =
+        "已断开";
+
+
+    document.getElementById("btnDisconnect")
+        .disabled = true;
+
+
+    document.getElementById("btnSend")
+        .disabled = true;
+
+
+    bluetoothDevice = null;
+
+    gattServer = null;
+
+    bleService = null;
+
+    rxCharacteristic = null;
+
+    txCharacteristic = null;
+
+    indicateCharacteristic = null;
+
+    notifyCharacteristic = null;
+}
+
+
+/* ============================================================
+ * 主动断开
+ * ============================================================ */
+
+function disconnectDevice() {
+
+    stopRequested = true;
+
+    sending = false;
+
+
+    if (
+        bluetoothDevice &&
+        bluetoothDevice.gatt &&
+        bluetoothDevice.gatt.connected
+    ) {
+
+        bluetoothDevice.gatt.disconnect();
+
+    }
+
+}
+
+
+/* ============================================================
+ * BLE接收
+ * ============================================================ */
+
+function onBleMessage(event) {
+
+    const value =
+        event.target.value;
+
+
+    const bytes =
+        new Uint8Array(
+            value.buffer,
+            value.byteOffset,
+            value.byteLength
+        );
+
+
+    /*
+     * ESP32返回的是 ASCII：
+     *
+     * ACK+1\r\n
+     * ACK+2\r\n
+     * Rec_Full\r\n
+     */
+
+    const decoder =
+        new TextDecoder();
+
+
+    const text =
+        decoder.decode(bytes);
+
+
+    log(
+        `ESP32 -> ${text.trim()}`,
+        "success"
+    );
+
+
+    const msg =
+        text.trim();
+
+
+    /*
+     * Rec_Full
+     */
+    if (
+        msg.includes("Rec_Full")
+    ) {
+
+        recFull = true;
+
+        return;
+    }
+
+
+    /*
+     * ACK+数字
+     */
+    const match =
+        msg.match(/ACK\+(\d+)/i);
+
+
+    if (match) {
+
+        ackValue =
+            parseInt(
+                match[1],
+                10
+            );
+
+    }
+
+}
+
+
+/* ============================================================
+ * 等待ACK
+ * ============================================================ */
+
+function waitForAck(expectedAck) {
+
+    return new Promise(
+        (resolve, reject) => {
+
+            const start =
+                Date.now();
+
+
+            const timer =
+                setInterval(() => {
+
+                    if (stopRequested) {
+
+                        clearInterval(timer);
+
+                        reject(
+                            new Error(
+                                "发送被用户停止"
+                            )
+                        );
+
+                        return;
+                    }
+
+
+                    /*
+                     * ACK已经到达
+                     */
+                    if (
+                        ackValue !== null &&
+                        ackValue >= expectedAck
+                    ) {
+
+                        clearInterval(timer);
+
+                        resolve();
+
+                        return;
+                    }
+
+
+                    /*
+                     * 超时
+                     */
+                    if (
+                        Date.now() - start >
+                        ACK_TIMEOUT
+                    ) {
+
+                        clearInterval(timer);
+
+                        reject(
+                            new Error(
+                                `等待 ACK+${expectedAck} 超时`
+                            )
+                        );
+
+                    }
+
+                }, 20);
+
+        }
+    );
+}
+
+
+/* ============================================================
+ * 等待 Rec_Full
+ * ============================================================ */
+
+function waitForRecFull() {
+
+    return new Promise(
+        (resolve, reject) => {
+
+            const start =
+                Date.now();
+
+
+            const timer =
+                setInterval(() => {
+
+                    if (stopRequested) {
+
+                        clearInterval(timer);
+
+                        reject(
+                            new Error(
+                                "发送被用户停止"
+                            )
+                        );
+
+                        return;
+                    }
+
+
+                    if (recFull) {
+
+                        clearInterval(timer);
+
+                        resolve();
+
+                        return;
+                    }
+
+
+                    if (
+                        Date.now() - start >
+                        ACK_TIMEOUT
+                    ) {
+
+                        clearInterval(timer);
+
+                        reject(
+                            new Error(
+                                "等待 Rec_Full 超时"
+                            )
+                        );
+
+                    }
+
+                }, 20);
+
+        }
+    );
+}
+
+
+/* ============================================================
+ * 发送字符串命令
+ * ============================================================ */
+
+async function writeString(str) {
+
+    if (!rxCharacteristic) {
+
+        throw new Error(
+            "RX 特征值未连接"
+        );
+
+    }
+
+
+    const encoder =
+        new TextEncoder();
+
+
+    const data =
+        encoder.encode(str);
+
+
+    /*
+     * 优先使用 writeWithoutResponse
+     *
+     * ESP32：
+     *
+     * BLE_GATT_CHR_F_WRITE |
+     * BLE_GATT_CHR_F_WRITE_NO_RSP
+     *
+     * 所以两种方式理论上都可以。
+     */
+
+    if (
+        rxCharacteristic.properties &&
+        rxCharacteristic.properties.writeWithoutResponse
+    ) {
+
+        await rxCharacteristic
+            .writeValueWithoutResponse(data);
+
+    } else {
+
+        await rxCharacteristic
+            .writeValue(data);
+
+    }
+
+
+    log(
+        `手机 -> ESP32: ${str.trim()}`,
+        "info"
+    );
+}
+
+
+/* ============================================================
+ * 发送二进制数据包
+ * ============================================================ */
+
+async function writePacket(packet) {
+
+    if (!rxCharacteristic) {
+
+        throw new Error(
+            "RX 特征值未连接"
+        );
+
+    }
+
+
+    if (
+        rxCharacteristic.properties &&
+        rxCharacteristic.properties.writeWithoutResponse
+    ) {
+
+        await rxCharacteristic
+            .writeValueWithoutResponse(packet);
+
+    } else {
+
+        await rxCharacteristic
+            .writeValue(packet);
+
+    }
+
+}
+
+
+/* ============================================================
+ * 图片加载
+ * ============================================================ */
+
+function loadImage() {
+
+    const file =
+        document.getElementById("imageFile")
+            .files[0];
+
+
+    if (!file) {
+        return;
+    }
+
+
+    const url =
+        URL.createObjectURL(file);
+
+
+    const img =
+        new Image();
+
+
+    img.onload = function() {
+
+        originalImage = img;
+
+
+        /*
+         * 默认把原图尺寸填入
+         */
+        document.getElementById("imageWidth")
+            .value =
+            img.naturalWidth;
+
+
+        document.getElementById("imageHeight")
+            .value =
+            img.naturalHeight;
+
+
+        /*
+         * 原图预览
+         */
+        const canvas =
+            document.getElementById(
+                "originalCanvas"
+            );
+
+
+        const ctx =
+            canvas.getContext("2d");
+
+
+        canvas.width =
+            img.naturalWidth;
+
+
+        canvas.height =
+            img.naturalHeight;
+
+
+        ctx.drawImage(
+            img,
+            0,
+            0
+        );
+
+
+        log(
+            `🖼️ 图片加载成功：${img.naturalWidth} × ${img.naturalHeight}`,
+            "success"
+        );
+
+
+        URL.revokeObjectURL(url);
+
+    };
+
+
+    img.onerror = function() {
+
+        log(
+            "❌ 图片加载失败",
+            "error"
+        );
+
+        URL.revokeObjectURL(url);
+
+    };
+
+
+    img.src = url;
+
+}
+
+
+/* ============================================================
+ * 灰度
+ * ============================================================ */
+
+function rgbToGray(r, g, b) {
+
+    return Math.round(
+        0.299 * r +
+        0.587 * g +
+        0.114 * b
+    );
+
+}
+
+
+/* ============================================================
+ * 灰度 -> 1bit
+ *
+ * 黑 = 1
+ * 白 = 0
+ *
+ * 如果你的墨水屏实际定义相反，
+ * 后面可以增加反色选项。
+ * ============================================================ */
+
+function grayTo1Bit(gray) {
+
+    return gray < 128
+        ? 1
+        : 0;
+
+}
+
+
+/* ============================================================
+ * 图片取模
+ * ============================================================ */
+
+function convertImage() {
+
+    if (!originalImage) {
+
+        alert("请先选择图片");
+
+        return;
+
+    }
+
+
+    imageWidth =
+        parseInt(
+            document.getElementById("imageWidth")
+                .value,
+            10
+        );
+
+
+    imageHeight =
+        parseInt(
+            document.getElementById("imageHeight")
+                .value,
+            10
+        );
+
+
+    imageBitDepth =
+        parseInt(
+            document.getElementById("bitDepth")
+                .value,
+            10
+        );
+
+
+    const bitOrder =
+        document.getElementById("bitOrder")
+            .value;
+
+
+    if (
+        imageWidth <= 0 ||
+        imageHeight <= 0
+    ) {
+
+        alert("图片尺寸错误");
+
+        return;
+
+    }
+
+
+    /*
+     * 建立缩放后的 Canvas
+     */
+    const canvas =
+        document.createElement("canvas");
+
+
+    canvas.width =
+        imageWidth;
+
+
+    canvas.height =
+        imageHeight;
+
+
+    const ctx =
+        canvas.getContext("2d");
+
+
+    /*
+     * 关闭平滑插值
+     *
+     * 对像素取模更加直接。
+     */
+    ctx.imageSmoothingEnabled = true;
+
+
+    ctx.drawImage(
+        originalImage,
+        0,
+        0,
+        imageWidth,
+        imageHeight
+    );
+
+
+    const rgba =
+        ctx.getImageData(
+            0,
+            0,
+            imageWidth,
+            imageHeight
+        ).data;
+
+
+    /*
+     * 计算数据大小
+     *
+     * 1bit：
+     *
+     * width * height / 8
+     *
+     * 2bit：
+     *
+     * width * height / 4
+     *
+     * 4bit：
+     *
+     * width * height / 2
+     *
+     * 8bit：
+     *
+     * width * height
+     */
+    const totalBits =
+        imageWidth *
+        imageHeight *
+        imageBitDepth;
+
+
+    const totalBytes =
+        Math.ceil(
+            totalBits / 8
+        );
+
+
+    imageDataBuffer =
+        new Uint8Array(
+            totalBytes
+        );
+
+
+    /*
+     * 清零
+     */
+    imageDataBuffer.fill(0);
+
+
+    /*
+     * --------------------------------------------------------
+     * 逐像素取模
+     * --------------------------------------------------------
+     */
+
+    let bitPosition = 0;
+
+
+    for (
+        let y = 0;
+        y < imageHeight;
+        y++
+    ) {
+
+        for (
+            let x = 0;
+            x < imageWidth;
+            x++
+        ) {
+
+            const pixelIndex =
+                (y * imageWidth + x) * 4;
+
+
+            const r =
+                rgba[pixelIndex + 0];
+
+            const g =
+                rgba[pixelIndex + 1];
+
+            const b =
+                rgba[pixelIndex + 2];
+
+            const a =
+                rgba[pixelIndex + 3];
+
+
+            /*
+             * 透明像素按白色处理
+             */
+            let gray;
+
+            if (a < 128) {
+
+                gray = 255;
+
+            } else {
+
+                gray =
+                    rgbToGray(
+                        r,
+                        g,
+                        b
+                    );
+
+            }
+
+
+            let value = 0;
+
+
+            /*
+             * 1bit
+             */
+            if (
+                imageBitDepth === 1
+            ) {
+
+                value =
+                    grayTo1Bit(
+                        gray
+                    );
+
+            }
+
+
+            /*
+             * 2bit
+             *
+             * 0 ~ 3
+             */
+            else if (
+                imageBitDepth === 2
+            ) {
+
+                value =
+                    Math.round(
+                        gray / 255 * 3
+                    );
+
+            }
+
+
+            /*
+             * 4bit
+             *
+             * 0 ~ 15
+             */
+            else if (
+                imageBitDepth === 4
+            ) {
+
+                value =
+                    Math.round(
+                        gray / 255 * 15
+                    );
+
+            }
+
+
+            /*
+             * 8bit
+             */
+            else {
+
+                value = gray;
+
+            }
+
+
+            /*
+             * 写入 bitstream
+             *
+             * MSB First：
+             *
+             * 高位 -> 低位
+             *
+             * LSB First：
+             *
+             * 低位 -> 高位
+             */
+
+            for (
+                let bit = imageBitDepth - 1;
+                bit >= 0;
+                bit--
+            ) {
+
+                let sourceBit;
+
+                if (bitOrder === "msb") {
+
+                    sourceBit =
+                        (value >> bit) & 1;
+
+                } else {
+
+                    sourceBit =
+                        (value >>
+                            (imageBitDepth - 1 - bit)) & 1;
+
+                }
+
+
+                if (sourceBit) {
+
+                    imageDataBuffer[
+                        Math.floor(
+                            bitPosition / 8
+                        )
+                    ] |=
+                        1 <<
+                        (
+                            7 -
+                            (bitPosition % 8)
+                        );
+
+                }
+
+
+                bitPosition++;
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * 生成预览
+     */
+    generatePreview(
+        rgba,
+        imageWidth,
+        imageHeight
+    );
+
+
+    /*
+     * 数据参数
+     */
+    document.getElementById(
+        "showSize"
+    ).textContent =
+        `${imageWidth} × ${imageHeight}`;
+
+
+    document.getElementById(
+        "showBitDepth"
+    ).textContent =
+        `${imageBitDepth} bit`;
+
+
+    document.getElementById(
+        "showDataSize"
+    ).textContent =
+        imageDataBuffer.length;
+
+
+    packetTotal =
+        Math.ceil(
+            imageDataBuffer.length /
+            PACK_DATA_SIZE
+        );
+
+
+    document.getElementById(
+        "showPacketTotal"
+    ).textContent =
+        packetTotal;
+
+
+    /*
+     * 如果已经连接，允许发送
+     */
+    document.getElementById("btnSend")
+        .disabled =
+        !rxCharacteristic;
+
+
+    log(
+        `✅ 取模完成：${imageWidth}×${imageHeight}, ${imageBitDepth}bit`,
+        "success"
+    );
+
+
+    log(
+        `📦 图片数据：${imageDataBuffer.length} Bytes`,
+        "info"
+    );
+
+
+    log(
+        `📦 BLE 数据包：${packetTotal} 包，每包 ${PACK_DATA_SIZE} Bytes`,
+        "info"
+    );
+
+}
+
+
+/* ============================================================
+ * 生成取模预览
+ * ============================================================ */
+
+function generatePreview(
+    rgba,
+    width,
+    height
+) {
+
+    const canvas =
+        document.getElementById(
+            "previewCanvas"
+        );
+
+
+    canvas.width = width;
+
+    canvas.height = height;
+
+
+    const ctx =
+        canvas.getContext("2d");
+
+
+    const output =
+        ctx.createImageData(
+            width,
+            height
+        );
+
+
+    for (
+        let i = 0;
+        i < width * height;
+        i++
+    ) {
+
+        const r =
+            rgba[i * 4 + 0];
+
+        const g =
+            rgba[i * 4 + 1];
+
+        const b =
+            rgba[i * 4 + 2];
+
+
+        const gray =
+            rgbToGray(
+                r,
+                g,
+                b
+            );
+
+
+        let v;
+
+
+        if (imageBitDepth === 1) {
+
+            v =
+                gray < 128
+                    ? 0
+                    : 255;
+
+        } else if (
+            imageBitDepth === 2
+        ) {
+
+            v =
+                Math.round(
+                    gray / 255 * 3
+                ) *
+                255 / 3;
+
+        } else if (
+            imageBitDepth === 4
+        ) {
+
+            v =
+                Math.round(
+                    gray / 255 * 15
+                ) *
+                255 / 15;
+
+        } else {
+
+            v = gray;
+
+        }
+
+
+        output.data[i * 4 + 0] = v;
+        output.data[i * 4 + 1] = v;
+        output.data[i * 4 + 2] = v;
+        output.data[i * 4 + 3] = 255;
+
+    }
+
+
+    ctx.putImageData(
+        output,
+        0,
+        0
+    );
+
+}
+
+
+/* ============================================================
+ * 创建一个BLE数据包
+ *
+ * 协议：
+ *
+ * Byte 0~1：
+ *     packet_index
+ *
+ * Byte 2~3：
+ *     packet_size
+ *
+ * Byte 4~：
+ *     image data
+ *
+ * 全部小端。
+ * ============================================================ */
+
+function createPacket(index) {
+
+    const packet =
+        new Uint8Array(
+            4 + PACK_DATA_SIZE
+        );
+
+
+    /*
+     * packet index
+     */
+    packet[0] =
+        index & 0xff;
+
+    packet[1] =
+        (index >> 8) & 0xff;
+
+
+    /*
+     * packet size
+     *
+     * 固定为120
+     *
+     * 最后一个包也补满。
+     */
+    packet[2] =
+        PACK_DATA_SIZE & 0xff;
+
+    packet[3] =
+        (PACK_DATA_SIZE >> 8) & 0xff;
+
+
+    /*
+     * 清零
+     *
+     * 最后一包不足120字节时，
+     * 后面的空间就是0。
+     */
+    packet.fill(
+        0,
+        4
+    );
+
+
+    const offset =
+        index *
+        PACK_DATA_SIZE;
+
+
+    const remaining =
+        imageDataBuffer.length -
+        offset;
+
+
+    const copySize =
+        Math.min(
+            PACK_DATA_SIZE,
+            Math.max(
+                remaining,
+                0
+            )
+        );
+
+
+    if (copySize > 0) {
+
+        packet.set(
+            imageDataBuffer.subarray(
+                offset,
+                offset + copySize
+            ),
+            4
+        );
+
+    }
+
+
+    return packet;
+}
+
+
+/* ============================================================
+ * 更新进度
+ * ============================================================ */
+
+function updateProgress(
+    current,
+    total
+) {
+
+    const percent =
+        total > 0
+            ? current / total * 100
+            : 0;
+
+
+    document.getElementById(
+        "progressBar"
+    ).style.width =
+        `${percent}%`;
+
+
+    document.getElementById(
+        "progressText"
+    ).textContent =
+        `${current} / ${total} (${percent.toFixed(1)}%)`;
+
+}
+
+
+/* ============================================================
+ * 停止发送
+ * ============================================================ */
+
+function stopSend() {
+
+    stopRequested = true;
+
+    log(
+        "⛔ 正在停止发送...",
+        "warn"
+    );
+
+}
+
+
+/* ============================================================
+ * 发送图片
+ * ============================================================ */
+
+async function sendImage() {
+
+    if (!rxCharacteristic) {
+
+        alert(
+            "请先连接 ESP32"
+        );
+
+        return;
+
+    }
+
+
+    if (!imageDataBuffer) {
+
+        alert(
+            "请先生成取模数据"
+        );
+
+        return;
+
+    }
+
+
+    if (sending) {
+
+        return;
+
+    }
+
+
+    sending = true;
+
+    stopRequested = false;
+
+    recFull = false;
+
+    ackValue = null;
+
+
+    document.getElementById(
+        "btnSend"
+    ).disabled = true;
+
+
+    document.getElementById(
+        "btnStop"
+    ).disabled = false;
+
+
+    updateProgress(
+        0,
+        packetTotal
+    );
+
+
+    try {
+
+        /* ====================================================
+         * 第一步
+         *
+         * UPDATE_IMAGE
+         * ==================================================== */
+
+        log(
+            "========== 开始发送图片 ==========",
+            "info"
+        );
+
+
+        await writeString(
+            "UPDATE_IMAGE\r\n"
+        );
+
+
+        /*
+         * 稍微等待 ESP32 切换状态
+         */
+        await sleep(100);
+
+
+        /* ====================================================
+         * 第二步
+         *
+         * PICINFO
+         * ==================================================== */
+
+        const picInfo =
+            `PICINFO ` +
+            `width:${imageWidth} ` +
+            `heigh:${imageHeight} ` +
+            `order:0 ` +
+            `size:${imageDataBuffer.length} ` +
+            `Total:${packetTotal}\r\n`;
+
+
+        await writeString(
+            picInfo
+        );
+
+
+        log(
+            `📋 ${picInfo.trim()}`,
+            "info"
+        );
+
+
+        /* ====================================================
+         * 第三步
+         *
+         * 等待 ACK+0
+         * ==================================================== */
+
+        ackValue = null;
+
+        recFull = false;
+
+
+        log(
+            "⏳ 等待 ESP32 ACK+0...",
+            "info"
+        );
+
+
+        await waitForAck(0);
+
+
+        log(
+            "✅ 收到 ACK+0，开始发送图片",
+            "success"
+        );
+
+
+        /* ====================================================
+         * 第四步
+         *
+         * 循环发送图片包
+         * ==================================================== */
+
+        for (
+            let i = 0;
+            i < packetTotal;
+            i++
+        ) {
+
+            if (stopRequested) {
+
+                throw new Error(
+                    "用户停止发送"
+                );
+
+            }
+
+
+            currentPacket = i;
+
+
+            const packet =
+                createPacket(i);
+
+
+            /*
+             * 第几个包
+             *
+             * 日志使用：
+             *
+             * 1/33
+             *
+             * ESP32 ACK：
+             *
+             * ACK+1
+             */
+
+            log(
+                `发送 ${i + 1}/${packetTotal}`,
+                "info"
+            );
+
+
+            /*
+             * 清除旧 ACK
+             */
+            ackValue = null;
+
+
+            /*
+             * 发送数据
+             */
+            await writePacket(
+                packet
+            );
+
+
+            /*
+             * =================================================
+             * 关键：
+             *
+             * 最后一个包不要简单认为一定要等 ACK。
+             *
+             * ESP32 完成时可能：
+             *
+             * ACK+33
+             * Rec_Full
+             *
+             * 也可能直接：
+             *
+             * Rec_Full
+             *
+             * 因此最后一个包单独处理。
+             * =================================================
+             */
+
+            if (
+                i === packetTotal - 1
+            ) {
+
+                /*
+                 * 最后一包：
+                 *
+                 * 等待 ACK+N 或 Rec_Full
+                 *
+                 * 两个任意一个先到都继续。
+                 */
+
+                await waitForLastPacket();
+
+            } else {
+
+                /*
+                 * 普通包：
+                 *
+                 * 等待 ACK+N
+                 */
+
+                await waitForAck(
+                    i + 1
+                );
+
+            }
+
+
+            updateProgress(
+                i + 1,
+                packetTotal
+            );
+
+
+            /*
+             * 给BLE一点时间
+             *
+             * 防止连续写太快。
+             */
+            await sleep(5);
+
+        }
+
+
+        /* ====================================================
+         * 第五步
+         *
+         * 确认 Rec_Full
+         * ==================================================== */
+
+        if (!recFull) {
+
+            log(
+                "⏳ 数据包已全部发送，等待 Rec_Full...",
+                "info"
+            );
+
+
+            await waitForRecFull();
+
+        }
+
+
+        log(
+            "🎉 ESP32 -> Rec_Full",
+            "success"
+        );
+
+
+        /* ====================================================
+         * 第六步
+         *
+         * EXIT
+         * ==================================================== */
+
+        await sleep(100);
+
+
+        await writeString(
+            "EXIT\r\n"
+        );
+
+
+        log(
+            "📤 已发送 EXIT",
+            "info"
+        );
+
+
+        log(
+            "========== 图片发送完成 ==========",
+            "success"
+        );
+
+
+    } catch (error) {
+
+        console.error(error);
+
+
+        log(
+            `❌ ${error.message}`,
+            "error"
+        );
+
+
+    } finally {
+
+        sending = false;
+
+        document.getElementById(
+            "btnSend"
+        ).disabled =
+            !rxCharacteristic;
+
+
+        document.getElementById(
+            "btnStop"
+        ).disabled = true;
+
+    }
+
+}
+
+
+/* ============================================================
+ * 最后一个包的ACK处理
+ *
+ * 支持两种ESP32行为：
+ *
+ * 情况A：
+ *
+ * ACK+33
+ * Rec_Full
+ *
+ * 情况B：
+ *
+ * Rec_Full
+ *
+ * ============================================================ */
+
+function waitForLastPacket() {
+
+    return new Promise(
+        (resolve, reject) => {
+
+            const start =
+                Date.now();
+
+
+            const expectedAck =
+                packetTotal;
+
+
+            const timer =
+                setInterval(() => {
+
+                    if (stopRequested) {
+
+                        clearInterval(timer);
+
+                        reject(
+                            new Error(
+                                "发送被用户停止"
+                            )
+                        );
+
+                        return;
+
+                    }
+
+
+                    /*
+                     * 情况A：
+                     *
+                     * 收到 ACK+33
+                     */
+                    if (
+                        ackValue !== null &&
+                        ackValue >= expectedAck
+                    ) {
+
+                        clearInterval(timer);
+
+                        log(
+                            `✅ 收到 ACK+${expectedAck}`,
+                            "success"
+                        );
+
+
+                        /*
+                         * 不一定已经收到 Rec_Full。
+                         *
+                         * 继续等待 Rec_Full。
+                         */
+                        if (recFull) {
+
+                            resolve();
+
+                        } else {
+
+                            waitForRecFull()
+                                .then(resolve)
+                                .catch(reject);
+
+                        }
+
+                        return;
+
+                    }
+
+
+                    /*
+                     * 情况B：
+                     *
+                     * ESP32直接发送 Rec_Full
+                     */
+                    if (recFull) {
+
+                        clearInterval(timer);
+
+                        log(
+                            "✅ 收到 Rec_Full",
+                            "success"
+                        );
+
+                        resolve();
+
+                        return;
+
+                    }
+
+
+                    /*
+                     * 超时
+                     */
+                    if (
+                        Date.now() - start >
+                        ACK_TIMEOUT
+                    ) {
+
+                        clearInterval(timer);
+
+                        reject(
+                            new Error(
+                                `最后一个包等待 ACK+${expectedAck} / Rec_Full 超时`
+                            )
+                        );
+
+                    }
+
+                }, 20);
+
+        }
+    );
+}
+
+
+/* ============================================================
+ * sleep
+ * ============================================================ */
+
+function sleep(ms) {
+
+    return new Promise(
+        resolve =>
+            setTimeout(
+                resolve,
+                ms
+            )
+    );
+
+}
+
+
+/* ============================================================
+ * 初始化
+ * ============================================================ */
+
+window.addEventListener(
+    "load",
+    () => {
+
+        log(
+            "网页初始化完成",
+            "info"
+        );
+
+
+        if (!navigator.bluetooth) {
+
+            log(
+                "❌ 当前浏览器不支持 Web Bluetooth",
+                "error"
+            );
+
+        } else {
+
+            log(
+                "✅ Web Bluetooth API 可用",
+                "success"
+            );
+
+        }
+
+    }
+);
+
+</script>
+
+</body>
+</html>

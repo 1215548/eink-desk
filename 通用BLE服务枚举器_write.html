@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>通用 Web BLE 服务枚举器 + 写值</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 960px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 28px;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; font-size: 14px; }
+        .card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+        .card h2 {
+            font-size: 16px;
+            color: #93c5fd;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        .btn-danger:hover { box-shadow: 0 4px 20px rgba(239,68,68,0.4); }
+        .btn-secondary {
+            background: #334155;
+            color: #cbd5e1;
+        }
+        .btn-secondary:hover { background: #475569; }
+        .btn-success {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+        }
+        .btn-success:hover { box-shadow: 0 4px 20px rgba(34,197,94,0.4); }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 16px;
+            padding: 10px 16px;
+            background: #0f172a;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #64748b;
+        }
+        .status-dot.connected {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34,197,94,0.6);
+            animation: pulse 2s infinite;
+        }
+        .status-dot.error { background: #ef4444; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+        /* ---- 服务列表区域 (独立滚动) ---- */
+        #serviceList {
+            background: #0f172a;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            max-height: 480px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        #serviceList::-webkit-scrollbar { width: 6px; }
+        #serviceList::-webkit-scrollbar-track { background: transparent; }
+        #serviceList::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+        /* ---- 日志区域 (独立滚动) ---- */
+        #log {
+            background: #0f172a;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border-top: 1px solid #334155;
+        }
+        #log::-webkit-scrollbar { width: 6px; }
+        #log::-webkit-scrollbar-track { background: transparent; }
+        #log::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+        .empty-state {
+            text-align: center;
+            color: #64748b;
+            padding: 20px 0;
+            font-size: 14px;
+        }
+        .log-service { color: #60a5fa; font-weight: 600; }
+        .log-char { color: #a78bfa; padding-left: 24px; }
+        .log-desc { color: #94a3b8; padding-left: 48px; }
+        .log-info { color: #22d3ee; }
+        .log-success { color: #4ade80; }
+        .log-error { color: #f87171; }
+        .log-warn { color: #fbbf24; }
+        .log-time { color: #64748b; margin-right: 8px; }
+
+        .props-badge {
+            display: inline-block;
+            background: #334155;
+            color: #cbd5e1;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+        .props-badge.read { background: #065f46; color: #6ee7b7; }
+        .props-badge.write { background: #7c2d12; color: #fdba74; }
+        .props-badge.notify { background: #4c1d95; color: #c4b5fd; }
+        .props-badge.indicate { background: #701a75; color: #f0abfc; }
+
+        .svc-name { color: #4ade80; font-size: 12px; margin-left: 6px; font-weight: 400; }
+
+        /* ---- 写值面板样式 ---- */
+        .write-panel {
+            margin-left: 48px;
+            margin-top: 4px;
+            margin-bottom: 8px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: #0f172a;
+            padding: 5px 10px;
+            border-radius: 6px;
+            border-left: 2px solid #3b82f6;
+        }
+        .write-panel .label { color: #94a3b8; font-size: 11px; font-weight: 400; }
+        .write-panel input[type="text"] {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            padding: 3px 8px;
+            color: #e2e8f0;
+            font-size: 12px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            flex: 1;
+            min-width: 120px;
+            outline: none;
+        }
+        .write-panel input[type="text"]:focus { border-color: #3b82f6; }
+        .write-panel select {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            padding: 3px 6px;
+            color: #e2e8f0;
+            font-size: 11px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            outline: none;
+            cursor: pointer;
+        }
+        .write-panel select:focus { border-color: #3b82f6; }
+        .write-panel .btn-write {
+            background: #3b82f6;
+            border: none;
+            border-radius: 4px;
+            padding: 3px 14px;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .write-panel .btn-write:hover { background: #2563eb; }
+        .write-panel .btn-write:active { transform: scale(0.96); }
+        .write-panel .btn-write:disabled { opacity: 0.5; cursor: not-allowed; }
+        .write-panel .result {
+            color: #94a3b8;
+            font-size: 11px;
+            min-width: 60px;
+            transition: color 0.2s;
+        }
+        .write-panel .result.ok { color: #4ade80; }
+        .write-panel .result.err { color: #f87171; }
+        .write-panel .result.pending { color: #fbbf24; }
+
+        @media (max-width: 600px) {
+            .write-panel {
+                margin-left: 12px;
+                padding: 6px 8px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .write-panel input[type="text"] { min-width: unset; }
+            .write-panel .btn-write { align-self: flex-end; }
+            .log-char { padding-left: 8px; }
+            .log-desc { padding-left: 16px; }
+        }
+
+        .uuid-note {
+            margin-top: 4px;
+            padding: 10px 14px;
+            background: #1a1a2e;
+            border-left: 3px solid #fbbf24;
+            border-radius: 0 8px 8px 0;
+            font-size: 12px;
+            color: #fbbf24;
+            line-height: 1.7;
+        }
+        textarea {
+            width: 100%;
+            min-height: 96px;
+            margin-top: 12px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 10px 12px;
+            resize: vertical;
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+        textarea:focus { outline: none; border-color: #3b82f6; }
+        .chip-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .chip {
+            background: #334155;
+            border: 1px solid #475569;
+            color: #cbd5e1;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .chip:hover { border-color: #f87171; color: #f87171; }
+        .chip .x { color: #f87171; font-weight: bold; }
+
+        .device-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .device-info-item {
+            background: #0f172a;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .device-info-item .label {
+            color: #64748b;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .device-info-item .value { color: #e2e8f0; margin-top: 4px; font-weight: 500; }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .toolbar .stats { font-size: 12px; color: #64748b; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🌐 通用 Web BLE 服务枚举器 + 写值</h1>
+    <p class="subtitle">连接任意 BLE 设备 · 枚举 Service / Characteristic · 支持对可写特征值直接写值</p>
+
+    <!-- 自定义服务授权 -->
+    <div class="card">
+        <h2>🔑 自定义服务授权（厂商私有服务必读）</h2>
+        <div class="uuid-note">
+            ⚠️ <b>Web Bluetooth 安全模型限制：</b>浏览器不允许网页"盲扫"设备上的未知服务 ——
+            只有在发起连接前于 <code>optionalServices</code> 中声明过的服务，连接后才能被枚举。<br />
+            本页已把 <b>全部 Bluetooth SIG 官方服务（0x1800 ~ 0x1856）</b>预先加入授权，标准服务开箱即用；
+            但 <b>厂商自定义服务</b>（如 ESP32 的 128 位服务、0x7659 这类私有 16 位服务）
+            必须先粘贴到下方输入框授权，然后重新连接才能看到。
+        </div>
+        <textarea id="customUuidInput" placeholder="每行一个，支持三种写法：&#10;7659                                    ← 16 位短格式（自动补全）&#10;0x180f、2901                            ← 同上，带不带 0x 均可&#10;bc9a7856-3412-3412-3412-341278563412   ← 完整 128 位 UUID&#10;battery_service                         ← Web Bluetooth 注册别名"></textarea>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="parseCustomUuids()">➕ 解析并加入授权列表</button>
+            <button class="btn btn-secondary" onclick="clearCustomUuids()">🗑 清空自定义列表</button>
+        </div>
+        <div class="chip-wrap" id="customChipWrap"></div>
+    </div>
+
+    <!-- 设备连接 -->
+    <div class="card">
+        <h2>⚡ 设备连接</h2>
+        <div class="btn-group" style="margin-top:0;">
+            <button class="btn btn-primary" id="btnConnect" onclick="onConnectClick()">🔍 扫描并连接任意 BLE 设备</button>
+            <button class="btn btn-danger" id="btnDisconnect" onclick="onDisconnectClick()" style="display:none;">⛓️‍💥 断开连接</button>
+        </div>
+        <div class="status-bar">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">未连接</span>
+        </div>
+        <div class="device-info" id="deviceInfo" style="display:none;">
+            <div class="device-info-item"><div class="label">设备名称</div><div class="value" id="infoName">-</div></div>
+            <div class="device-info-item"><div class="label">设备 ID</div><div class="value" id="infoId">-</div></div>
+            <div class="device-info-item"><div class="label">GATT 状态</div><div class="value" id="infoGatt">-</div></div>
+        </div>
+    </div>
+
+    <!-- 枚举结果 + 写值面板（分离布局） -->
+    <div class="card">
+        <h2>📋 服务枚举 &amp; 写值面板</h2>
+        <div class="toolbar">
+            <div class="stats" id="statsText">等待连接...</div>
+            <div>
+                <button class="btn" style="padding:6px 14px;font-size:12px;background:#334155;color:#cbd5e1;" onclick="clearAll()">清空所有</button>
+            </div>
+        </div>
+        <!-- 服务列表（含写值面板） -->
+        <div id="serviceList"><div class="empty-state">点击「扫描并连接任意 BLE 设备」开始枚举</div></div>
+        <!-- 日志消息 -->
+        <div id="log"><div class="empty-state">日志消息将显示在此处</div></div>
+    </div>
+</div>
+
+<script>
+    // ================================================================
+    // Bluetooth SIG 官方服务 UUID 表
+    // ================================================================
+    const SIG_SERVICES = [
+        [0x1800,'Generic Access'],[0x1801,'Generic Attribute'],[0x1802,'Immediate Alert'],
+        [0x1803,'Link Loss'],[0x1804,'Tx Power'],[0x1805,'Current Time'],
+        [0x1806,'Reference Time Update'],[0x1807,'Next DST Change'],[0x1808,'Glucose'],
+        [0x1809,'Health Thermometer'],[0x180A,'Device Information'],[0x180D,'Heart Rate'],
+        [0x180E,'Phone Alert Status'],[0x180F,'Battery Service'],[0x1810,'Blood Pressure'],
+        [0x1811,'Alert Notification'],[0x1812,'Human Interface Device'],[0x1813,'Scan Parameters'],
+        [0x1814,'Running Speed and Cadence'],[0x1815,'Automation IO'],[0x1816,'Cycling Speed and Cadence'],
+        [0x1818,'Cycling Power'],[0x1819,'Location and Navigation'],[0x181A,'Environmental Sensing'],
+        [0x181B,'Body Composition'],[0x181C,'User Data'],[0x181D,'Weight Scale'],
+        [0x181E,'Bond Management'],[0x181F,'Continuous Glucose Monitoring'],[0x1820,'Internet Protocol Support'],
+        [0x1821,'Indoor Positioning'],[0x1822,'Pulse Oximeter'],[0x1823,'HTTP Proxy'],
+        [0x1824,'Transport Discovery'],[0x1825,'Object Transfer'],[0x1826,'Fitness Machine'],
+        [0x1827,'Mesh Provisioning'],[0x1828,'Mesh Proxy'],[0x1829,'Reconnection Configuration'],
+        [0x183A,'Insulin Delivery'],[0x183B,'Binary Sensor'],[0x183C,'Emergency Configuration'],
+        [0x183E,'Physical Activity Monitor'],[0x1843,'Audio Input Control'],[0x1844,'Volume Control'],
+        [0x1845,'Volume Offset Control'],[0x1846,'Coordinated Set Identification'],[0x1847,'Media Control'],
+        [0x1848,'Generic Media Control'],[0x1849,'Constant Tone Extension'],[0x184A,'Telephone Bearer'],
+        [0x184B,'Generic Telephone Bearer'],[0x184C,'Microphone Control'],[0x184D,'Audio Stream Control'],
+        [0x184E,'Broadcast Audio Scan'],[0x184F,'Published Audio Capabilities'],[0x1850,'Audio Content Control'],
+        [0x1851,'Audio Location'],[0x1853,'Gaming Audio'],[0x1854,'Mesh Proxy Solicitation'],
+        [0x1855,'Common Audio'],[0x1856,'Hearing Access']
+    ];
+    function uuid16ToFull(code) { return '0000' + code.toString(16).padStart(4,'0') + '-0000-1000-8000-00805f9b34fb'; }
+    const SIG_UUID_SET = new Set(SIG_SERVICES.map(s => uuid16ToFull(s[0])));
+    const SIG_NAME_MAP = new Map(SIG_SERVICES.map(s => [uuid16ToFull(s[0]), s[1]]));
+
+    const customServices = new Set();
+
+    // ================================================================
+    // 全局状态
+    // ================================================================
+    let bluetoothDevice = null;
+    let gattServer = null;
+    let serviceCount = 0, charCount = 0, descCount = 0;
+    const charMap = new Map();
+
+    // ================================================================
+    // 日志工具（写入 #log）
+    // ================================================================
+    function getTimeStr() { return new Date().toTimeString().slice(0,8); }
+
+    function log(msg, type = '') {
+        const logEl = document.getElementById('log');
+        const empty = logEl.querySelector('.empty-state');
+        if (empty) empty.remove();
+        const line = document.createElement('div');
+        line.innerHTML = `<span class="log-time">[${getTimeStr()}]</span>`;
+        const span = document.createElement('span');
+        if (type) span.className = 'log-' + type;
+        span.textContent = msg;
+        line.appendChild(span);
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // ================================================================
+    // 服务列表输出（写入 #serviceList，不带时间戳）
+    // ================================================================
+    function appendServiceHTML(html) {
+        const container = document.getElementById('serviceList');
+        const empty = container.querySelector('.empty-state');
+        if (empty) empty.remove();
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // 用于追加写值面板（无额外包装）
+    function appendRawHTML(html) {
+        const container = document.getElementById('serviceList');
+        const empty = container.querySelector('.empty-state');
+        if (empty) empty.remove();
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // ================================================================
+    // 清空功能
+    // ================================================================
+    function clearAll() {
+        document.getElementById('serviceList').innerHTML = '<div class="empty-state">已清空，重新连接后会重新枚举</div>';
+        document.getElementById('log').innerHTML = '<div class="empty-state">日志已清空</div>';
+        serviceCount = charCount = descCount = 0;
+        charMap.clear();
+        updateStats();
+    }
+
+    function clearLog() {
+        document.getElementById('log').innerHTML = '<div class="empty-state">日志已清空</div>';
+    }
+
+    function updateStats() {
+        document.getElementById('statsText').textContent =
+            `共发现 ${serviceCount} 个 Service, ${charCount} 个 Characteristic, ${descCount} 个 Descriptor` +
+            (charMap.size > 0 ? `  | 可写特征值 ${charMap.size} 个` : '');
+    }
+
+    // ================================================================
+    // 状态管理
+    // ================================================================
+    function setStatus(text, state = '') {
+        document.getElementById('statusText').textContent = text;
+        const dot = document.getElementById('statusDot');
+        dot.className = 'status-dot';
+        if (state) dot.classList.add(state);
+    }
+
+    function showDeviceInfo(device) {
+        document.getElementById('deviceInfo').style.display = 'grid';
+        document.getElementById('infoName').textContent = device.name || '未知';
+        document.getElementById('infoId').textContent = device.id || '-';
+        document.getElementById('infoGatt').textContent = device.gatt.connected ? '已连接' : '未连接';
+    }
+
+    function hideDeviceInfo() { document.getElementById('deviceInfo').style.display = 'none'; }
+
+    function toggleButtons(connected) {
+        document.getElementById('btnConnect').style.display = connected ? 'none' : 'inline-flex';
+        document.getElementById('btnDisconnect').style.display = connected ? 'inline-flex' : 'none';
+    }
+
+    // ================================================================
+    // 属性徽章 & UUID 格式化
+    // ================================================================
+    function propsBadges(char) {
+        const p = char.properties;
+        let html = '';
+        const map = {
+            read: ['read','read'], write: ['write','write'],
+            writeWithoutResponse: ['writeNoResp','write'], notify: ['notify','notify'],
+            indicate: ['indicate','indicate'], broadcast: ['broadcast',''],
+            authenticatedSignedWrites: ['signedWrite',''], reliableWrite: ['reliableWrite',''],
+            writableAuxiliaries: ['writableAux','']
+        };
+        for (const [key, [label, cls]] of Object.entries(map)) {
+            if (p[key]) html += `<span class="props-badge ${cls}">${label}</span>`;
+        }
+        return html;
+    }
+
+    function formatUUID(uuid) {
+        if (uuid && uuid.length === 36 && uuid.endsWith('-0000-1000-8000-00805f9b34fb')) {
+            const short = uuid.substring(4,8);
+            return `${uuid} <span style="color:#64748b;">(0x${short.replace(/^0+/,'') || '0'})</span>`;
+        }
+        return uuid || '未知';
+    }
+
+    // ================================================================
+    // 自定义 UUID 解析与授权管理
+    // ================================================================
+    function normalizeUuid(raw) {
+        let s = String(raw).trim().toLowerCase();
+        if (!s) return null;
+        let m = s.match(/^(0x)?([0-9a-f]{4})$/);
+        if (m) return uuid16ToFull(parseInt(m[2],16));
+        m = s.match(/^([0-9a-f]{32})$/);
+        if (m) {
+            const h = m[1];
+            return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+        }
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(s)) return s;
+        return null;
+    }
+
+    function parseCustomUuids() {
+        const raw = document.getElementById('customUuidInput').value;
+        const items = raw.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+        if (items.length === 0) {
+            log('⚠️ 请先在输入框中粘贴至少一个 UUID', 'warn');
+            return;
+        }
+        let added = 0, failed = [];
+        for (const item of items) {
+            let uuid = normalizeUuid(item);
+            if (!uuid && window.BluetoothUUID) {
+                try { uuid = BluetoothUUID.getService(item).toLowerCase(); } catch (_) { uuid = null; }
+            }
+            if (!uuid) { failed.push(item); continue; }
+            if (!customServices.has(uuid)) { customServices.add(uuid); added++; }
+        }
+        renderChips();
+        if (added > 0) log(`✅ 已新增 ${added} 个自定义服务到授权列表（重新连接后生效）`, 'success');
+        if (failed.length > 0) log(`❌ 无法解析的条目: ${failed.join(', ')}`, 'error');
+        document.getElementById('customUuidInput').value = '';
+    }
+
+    function clearCustomUuids() {
+        customServices.clear();
+        renderChips();
+        log('🗑 自定义授权列表已清空', 'warn');
+    }
+
+    function removeCustomUuid(uuid) {
+        customServices.delete(uuid);
+        renderChips();
+    }
+
+    function renderChips() {
+        const wrap = document.getElementById('customChipWrap');
+        wrap.innerHTML = '';
+        customServices.forEach(uuid => {
+            const chip = document.createElement('span');
+            chip.className = 'chip';
+            chip.title = '点击移除';
+            chip.innerHTML = uuid + ' <span class="x">×</span>';
+            chip.onclick = () => removeCustomUuid(uuid);
+            wrap.appendChild(chip);
+        });
+    }
+
+    // ================================================================
+    // 写值功能
+    // ================================================================
+    function parseWriteValue(value, mode) {
+        const trimmed = value.trim();
+        if (!trimmed) return { buffer: null, error: '请输入值' };
+        if (mode === 'hex') {
+            const hex = trimmed.replace(/\s/g, '');
+            if (hex.length === 0) return { buffer: null, error: '请输入十六进制数据' };
+            if (hex.length % 2 !== 0) return { buffer: null, error: '十六进制长度必须为偶数' };
+            try {
+                const bytes = new Uint8Array(hex.length / 2);
+                for (let i = 0; i < hex.length; i += 2) {
+                    bytes[i/2] = parseInt(hex.substr(i,2), 16);
+                }
+                return { buffer: bytes.buffer, error: null };
+            } catch (_) {
+                return { buffer: null, error: '无效的十六进制数据' };
+            }
+        } else {
+            try {
+                const encoder = new TextEncoder();
+                return { buffer: encoder.encode(trimmed).buffer, error: null };
+            } catch (_) {
+                return { buffer: null, error: '文本编码失败' };
+            }
+        }
+    }
+
+    async function writeChar(charId) {
+        const char = charMap.get(charId);
+        if (!char) {
+            log('❌ 找不到对应的 Characteristic', 'error');
+            return;
+        }
+        const input = document.getElementById(`input-${charId}`);
+        const modeSel = document.getElementById(`mode-${charId}`);
+        const resultSpan = document.getElementById(`result-${charId}`);
+        const btn = document.getElementById(`btn-${charId}`);
+        if (!input || !modeSel || !resultSpan) {
+            log('❌ 写值控件初始化异常', 'error');
+            return;
+        }
+        const value = input.value;
+        const mode = modeSel.value;
+        const { buffer, error } = parseWriteValue(value, mode);
+        if (error) {
+            resultSpan.textContent = '❌ ' + error;
+            resultSpan.className = 'result err';
+            return;
+        }
+        const hasWrite = char.properties.write || false;
+        const hasWriteNoResp = char.properties.writeWithoutResponse || false;
+        if (!hasWrite && !hasWriteNoResp) {
+            resultSpan.textContent = '❌ 该特征值不可写';
+            resultSpan.className = 'result err';
+            return;
+        }
+        btn.disabled = true;
+        resultSpan.textContent = '⏳ 写入中...';
+        resultSpan.className = 'result pending';
+        try {
+            let method;
+            if (hasWrite) method = char.writeValue(buffer);
+            else method = char.writeValueWithoutResponse(buffer);
+            await method;
+            resultSpan.textContent = '✅ 成功';
+            resultSpan.className = 'result ok';
+            log(`✅ 写入成功 [${char.uuid}] => ${value}`, 'success');
+        } catch (err) {
+            resultSpan.textContent = '❌ ' + err.message;
+            resultSpan.className = 'result err';
+            log(`❌ 写入失败 [${char.uuid}]: ${err.message}`, 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // ================================================================
+    // 核心：连接设备 + 枚举服务 + 生成写值面板
+    // ================================================================
+    async function onConnectClick() {
+        try {
+            if (!navigator.bluetooth) {
+                log('❌ 当前浏览器不支持 Web Bluetooth API，请使用 Chrome / Edge', 'error');
+                return;
+            }
+            const optionalServices = [...SIG_UUID_SET, ...customServices];
+            log(`🔐 本次授权服务总数: ${optionalServices.length}（SIG 标准 ${SIG_UUID_SET.size} + 自定义 ${customServices.size}）`, 'info');
+            log('🔍 正在请求蓝牙设备...', 'info');
+            setStatus('正在扫描...', '');
+
+            bluetoothDevice = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: optionalServices
+            });
+            log(`✅ 已选择设备: ${bluetoothDevice.name || '未命名设备'}`, 'success');
+            showDeviceInfo(bluetoothDevice);
+
+            bluetoothDevice.addEventListener('gattserverdisconnected', () => {
+                log('⚠️ 设备已断开连接', 'warn');
+                setStatus('已断开', 'error');
+                toggleButtons(false);
+                hideDeviceInfo();
+                gattServer = null;
+                charMap.clear();
+                updateStats();
+            });
+
+            await connectAndEnumerate();
+        } catch (error) {
+            if (error.name === 'NotFoundError') {
+                log('ℹ️ 用户取消了设备选择', 'warn');
+                setStatus('未连接', '');
+            } else {
+                log(`❌ 错误: ${error.message}`, 'error');
+                setStatus('连接失败', 'error');
+            }
+            console.error(error);
+        }
+    }
+
+    async function connectAndEnumerate() {
+        try {
+            document.getElementById('btnConnect').disabled = true;
+            setStatus('正在连接 GATT Server...', '');
+            log('📡 正在建立 GATT 连接...', 'info');
+
+            gattServer = await bluetoothDevice.gatt.connect();
+            log('✅ GATT 连接成功！开始枚举服务...', 'success');
+            setStatus('已连接', 'connected');
+            toggleButtons(true);
+            document.getElementById('infoGatt').textContent = '已连接';
+
+            // 清空服务列表（保留日志历史）
+            document.getElementById('serviceList').innerHTML = '';
+            serviceCount = charCount = descCount = 0;
+            charMap.clear();
+
+            let blockedServices = 0;
+            log('', '');
+            log('━━━━━━ 开始枚举 ━━━━━━', 'info');
+
+            const services = await gattServer.getPrimaryServices();
+            log(`📦 共发现 ${services.length} 个可访问的 Primary Service`, 'info');
+            if (services.length === 0) {
+                log('⚠️ 未发现任何可访问的服务：', 'warn');
+                log('   该设备的服务可能都是厂商私有 UUID，请先填入上方授权框再重新连接', 'warn');
+            }
+            log('', '');
+
+            for (let i = 0; i < services.length; i++) {
+                const service = services[i];
+                serviceCount++;
+                const name = SIG_NAME_MAP.get(service.uuid) ||
+                             (customServices.has(service.uuid) ? '自定义授权服务' : '');
+                const nameHtml = name ? ` <span class="svc-name">[${name}]</span>` : '';
+                appendServiceHTML(`<div class="log-service">📦 <b>Service #${i+1}</b>: ${formatUUID(service.uuid)}${nameHtml}</div>`);
+
+                try {
+                    const characteristics = await service.getCharacteristics();
+                    appendServiceHTML(`<div style="color:#94a3b8;padding-left:24px;">共 ${characteristics.length} 个 Characteristic</div>`);
+
+                    for (let j = 0; j < characteristics.length; j++) {
+                        const char = characteristics[j];
+                        charCount++;
+                        const charId = `char-${i}-${j}`;
+                        const isWritable = char.properties.write || char.properties.writeWithoutResponse;
+
+                        const badges = propsBadges(char);
+                        appendServiceHTML(`<div class="log-char">↳ <b>Char #${j+1}</b>: ${formatUUID(char.uuid)} ${badges}</div>`);
+
+                        if (isWritable) {
+                            charMap.set(charId, char);
+                            const writeHtml = `
+                                <div class="write-panel">
+                                    <span class="label">✏️ 写入</span>
+                                    <input id="input-${charId}" type="text" placeholder="输入值..." spellcheck="false" />
+                                    <select id="mode-${charId}">
+                                        <option value="text">文本</option>
+                                        <option value="hex">Hex</option>
+                                    </select>
+                                    <button id="btn-${charId}" class="btn-write" onclick="writeChar('${charId}')">写入</button>
+                                    <span id="result-${charId}" class="result">就绪</span>
+                                </div>
+                            `;
+                            appendRawHTML(writeHtml);
+                        }
+
+                        try {
+                            const descriptors = await char.getDescriptors();
+                            for (let k = 0; k < descriptors.length; k++) {
+                                descCount++;
+                                appendServiceHTML(`<div class="log-desc">↳ <b>Desc #${k+1}</b>: ${formatUUID(descriptors[k].uuid)}</div>`);
+                            }
+                        } catch (descErr) {
+                            appendServiceHTML(`<div class="log-desc" style="color:#fbbf24;">↳ (无法获取描述符: ${descErr.message})</div>`);
+                        }
+                    }
+                } catch (charErr) {
+                    blockedServices++;
+                    appendServiceHTML(`<div style="color:#fbbf24;padding-left:24px;">⚠️ 该服务受浏览器安全黑名单限制，无法展开特征值: ${charErr.message}</div>`);
+                }
+                // 空行
+                appendServiceHTML('<div style="height:4px;"></div>');
+            }
+
+            if (charMap.size > 0) {
+                log(`💡 共 ${charMap.size} 个可写特征值，已在每个下方生成写值面板`, 'info');
+                log('   支持 文本 和 十六进制 两种输入模式，点击「写入」即可发送', 'info');
+            } else {
+                log('ℹ️ 未发现任何可写的 Characteristic（所有特征值均为只读或未授权）', 'warn');
+            }
+
+            log('━━━━━━━━━━━━━━━━━━━━━━', 'info');
+            log('🎉 枚举完成！', 'success');
+            log(`   • Service:        ${serviceCount} 个`, 'success');
+            log(`   • Characteristic: ${charCount} 个`, 'success');
+            log(`   • Descriptor:     ${descCount} 个`, 'success');
+            if (blockedServices > 0) {
+                log(`   • 受浏览器黑名单限制无法展开的服务: ${blockedServices} 个（典型如 GAP 0x1800 / GATT 0x1801，属正常现象）`, 'warn');
+            }
+            updateStats();
+
+            log('', '');
+            log('💡 没看到预期的厂商服务？把它的 UUID 填入顶部授权框后重新点击连接（授权只在发起连接那一刻生效）', 'info');
+        } catch (error) {
+            log(`❌ 连接/枚举失败: ${error.message}`, 'error');
+            setStatus('连接失败', 'error');
+            toggleButtons(false);
+            console.error(error);
+        } finally {
+            document.getElementById('btnConnect').disabled = false;
+        }
+    }
+
+    // ================================================================
+    // 断开连接
+    // ================================================================
+    function onDisconnectClick() {
+        try {
+            if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                bluetoothDevice.gatt.disconnect();
+                log('🔌 已主动断开连接', 'warn');
+            }
+        } catch (e) { log(`⚠️ 断开时出错: ${e.message}`, 'warn'); }
+        setStatus('已断开', 'error');
+        toggleButtons(false);
+        hideDeviceInfo();
+        gattServer = null;
+        charMap.clear();
+        updateStats();
+    }
+
+    // ================================================================
+    // 页面加载检测
+    // ================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+        if (!navigator.bluetooth) {
+            log('⚠️ 当前环境不支持 Web Bluetooth API', 'error');
+            log('   请使用 Chrome 56+ / Edge 79+（桌面版或 Android 版）', 'warn');
+            log('   并且页面必须运行在 HTTPS 或 localhost 环境', 'warn');
+            document.getElementById('btnConnect').disabled = true;
+        } else {
+            log('✅ Web Bluetooth API 可用', 'success');
+            log(`📌 已预授权 ${SIG_UUID_SET.size} 个 Bluetooth SIG 官方服务`, 'info');
+            log('📌 厂商自定义服务（如 0x7659、128 位私有 UUID）需先填入顶部授权框，再重新连接', 'info');
+            log('   点击上方按钮扫描设备，连接后会自动枚举服务并为可写特征值生成写值面板', 'success');
+        }
+    });
+</script>
+</body>
+</html>

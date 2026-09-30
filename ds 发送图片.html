@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 BLE 图片发送器</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f2f4f7;
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+            color: #222;
+        }
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+        h1 {
+            margin-top: 0;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        label {
+            font-weight: bold;
+            user-select: none;
+        }
+        input,
+        select,
+        button {
+            font-size: 15px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        input[type="number"] {
+            width: 100px;
+        }
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #1677ff;
+        }
+        button {
+            cursor: pointer;
+            background: #eee;
+        }
+        button:hover {
+            background: #ddd;
+        }
+        button.primary {
+            background: #1677ff;
+            color: white;
+            border-color: #1677ff;
+        }
+        button.primary:hover {
+            background: #0a5fd9;
+        }
+        button.danger {
+            background: #ff4d4f;
+            color: white;
+            border-color: #ff4d4f;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            background: #f6f6f6;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .preview-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .preview-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            background: #eee;
+            text-align: center;
+        }
+        .preview-box>div {
+            margin-bottom: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            color: #555;
+        }
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            border: 1px solid #999;
+            max-width: 100%;
+            height: auto;
+            background: #fff;
+        }
+        .progress {
+            width: 100%;
+            height: 22px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #1677ff;
+            transition: width 0.1s;
+        }
+        #log {
+            height: 260px;
+            overflow-y: auto;
+            background: #111;
+            color: #0f0;
+            padding: 10px;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            border-radius: 6px;
+        }
+        .value {
+            font-family: monospace;
+            color: #1677ff;
+        }
+        .inline-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        .inline-label input[type="checkbox"] {
+            margin: 0;
+        }
+        .hint {
+            font-size: 13px;
+            color: #888;
+            margin-left: 4px;
+        }
+        .highlight {
+            color: #ff4d4f;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ESP32 BLE 图片发送器</h1>
+
+        <!-- BLE -->
+        <div class="card">
+            <h2>1. BLE连接</h2>
+            <div class="row">
+                <button class="primary" id="scanBtn">
+                    扫描 BLE
+                </button>
+                <button id="disconnectBtn" disabled>
+                    断开
+                </button>
+            </div>
+            <div class="status">
+                设备：<span id="deviceName">未连接</span>
+                连接状态：<span id="bleStatus">未连接</span>
+                Service：<span id="serviceInfo">---</span>
+                RX：<span id="rxInfo">---</span>
+                Indicate：<span id="indicateInfo">---</span>
+            </div>
+        </div>
+
+        <!-- 图片 -->
+        <div class="card">
+            <h2>2. 图片</h2>
+            <div class="row">
+                <label>图片：</label>
+                <input type="file" id="imageFile" accept="image/*">
+            </div>
+            <div class="row">
+                <label>宽度：</label>
+                <input type="number" id="imageWidth" value="250" min="1" max="2000">
+                <label>高度：</label>
+                <input type="number" id="imageHeight" value="122" min="1" max="2000">
+                <button id="useOriginalSizeBtn">使用原图尺寸</button>
+            </div>
+            <div class="row">
+                <label>位深：</label>
+                <select id="bitDepth">
+                    <option value="1">1 bit 黑白</option>
+                    <option value="2">2 bit 灰度</option>
+                    <option value="4">4 bit 灰度</option>
+                    <option value="8">8 bit 灰度</option>
+                </select>
+            </div>
+            <div class="row">
+                <label>取模方向：</label>
+                <select id="scanMode">
+                    <option value="row">横向逐行</option>
+                    <option value="column">纵向逐列</option>
+                </select>
+                <span class="hint">（暂仅支持横向逐行）</span>
+            </div>
+            <div class="preview-container">
+                <div class="preview-box">
+                    <div>原图</div>
+                    <canvas id="originalCanvas"></canvas>
+                </div>
+                <div class="preview-box">
+                    <div>取模后预览</div>
+                    <canvas id="previewCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据参数 -->
+        <div class="card">
+            <h2>3. 数据参数</h2>
+            <div class="row">
+                <span>图片尺寸：<span class="value" id="sizeInfo">---</span></span>
+            </div>
+            <div class="row">
+                <span>取模数据：<span class="value" id="dataSizeInfo">---</span></span>
+            </div>
+            <div class="row">
+                <span>分包大小：<span class="value" id="packetSizeInfo">---</span></span>
+            </div>
+            <div class="row">
+                <span>总包数：<span class="value" id="packetCountInfo">---</span></span>
+            </div>
+
+            <!-- 新增：反相控制 -->
+            <div class="row" style="margin-top:8px; border-top:1px solid #eee; padding-top:12px;">
+                <label class="inline-label">
+                    <input type="checkbox" id="invertCheckbox" checked>
+                    <span>预览反相 (Preview Invert) <span class="hint highlight">默认开启（适配ESP32显示）</span></span>
+                </label>
+            </div>
+            <div class="row" style="margin-top:4px;">
+                <label class="inline-label">
+                    <input type="checkbox" id="sendInvertCheckbox" checked>
+                    <span>发送反相 (Send Invert) <span class="hint highlight">默认开启（适配ESP32显示）</span></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- 发送 -->
+        <div class="card">
+            <h2>4. 发送图片</h2>
+            <div class="row">
+                <button class="primary" id="sendBtn" disabled>开始发送</button>
+            </div>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div style="margin-top:10px" id="progressText">0%</div>
+        </div>
+
+        <!-- 日志 -->
+        <div class="card">
+            <h2>5. 日志</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        /* =========================================================
+         * BLE UUID
+         * ========================================================= */
+        const BLE_DEVICE_NAME = "EspBle";
+        const SERVICE_UUID = 0xEEE0;
+        const RX_UUID = 0xEEE1;
+        const TX_UUID = 0xEEE2;
+        const INDICATE_UUID = 0xEEE3;
+        const NOTIFY_UUID = 0xEEE4;
+
+        /* =========================================================
+         * BLE对象
+         * ========================================================= */
+        let bleDevice = null;
+        let bleServer = null;
+        let bleService = null;
+        let rxCharacteristic = null;
+        let txCharacteristic = null;
+        let indicateCharacteristic = null;
+        let notifyCharacteristic = null;
+
+        /*
+         * ESP32 默认 MTU 128
+         * 实际 Write 最大：MTU - 3 = 125 bytes
+         * 协议包头 4 字节：index(2) + size(2)
+         * 图片数据：125 - 4 = 121，保守使用 120
+         */
+        const BLE_DATA_SIZE = 120;
+
+        /* =========================================================
+         * 状态
+         * ========================================================= */
+        let originalImage = null;
+        let convertedData = null; // 最终取模数据（已应用发送反相）
+        let packetSize = BLE_DATA_SIZE;
+        let packetTotal = 0;
+
+        /* ACK等待 */
+        let ackWaiter = null;
+
+        /* =========================================================
+         * DOM 引用缓存
+         * ========================================================= */
+        const $ = id => document.getElementById(id);
+        const dom = {
+            log: $('log'),
+            scanBtn: $('scanBtn'),
+            disconnectBtn: $('disconnectBtn'),
+            deviceName: $('deviceName'),
+            bleStatus: $('bleStatus'),
+            serviceInfo: $('serviceInfo'),
+            rxInfo: $('rxInfo'),
+            indicateInfo: $('indicateInfo'),
+            imageFile: $('imageFile'),
+            imageWidth: $('imageWidth'),
+            imageHeight: $('imageHeight'),
+            bitDepth: $('bitDepth'),
+            scanMode: $('scanMode'),
+            invertCheckbox: $('invertCheckbox'),
+            sendInvertCheckbox: $('sendInvertCheckbox'),
+            originalCanvas: $('originalCanvas'),
+            previewCanvas: $('previewCanvas'),
+            sizeInfo: $('sizeInfo'),
+            dataSizeInfo: $('dataSizeInfo'),
+            packetSizeInfo: $('packetSizeInfo'),
+            packetCountInfo: $('packetCountInfo'),
+            sendBtn: $('sendBtn'),
+            progressBar: $('progressBar'),
+            progressText: $('progressText'),
+            useOriginalSizeBtn: $('useOriginalSizeBtn'),
+        };
+
+        /* =========================================================
+         * 日志
+         * ========================================================= */
+        function log(message) {
+            const time = new Date().toLocaleTimeString();
+            dom.log.textContent += `[${time}] ${message}\n`;
+            dom.log.scrollTop = dom.log.scrollHeight;
+        }
+
+        /* =========================================================
+         * BLE扫描
+         * ========================================================= */
+        dom.scanBtn.addEventListener('click', scanBLE);
+        async function scanBLE() {
+            try {
+                log("开始扫描 BLE...");
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: BLE_DEVICE_NAME }],
+                    optionalServices: [SERVICE_UUID]
+                });
+                log("找到设备：" + (bleDevice.name || "Unknown"));
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                await connectBLE();
+            } catch (error) {
+                console.error(error);
+                log("扫描/连接失败：" + error.message);
+            }
+        }
+
+        /* =========================================================
+         * BLE连接
+         * ========================================================= */
+        async function connectBLE() {
+            try {
+                log("正在连接...");
+                bleServer = await bleDevice.gatt.connect();
+                log("GATT连接成功");
+                bleService = await bleServer.getPrimaryService(SERVICE_UUID);
+                log("找到 Service: 0xEEE0");
+                rxCharacteristic = await bleService.getCharacteristic(RX_UUID);
+                try {
+                    txCharacteristic = await bleService.getCharacteristic(TX_UUID);
+                } catch (_) { txCharacteristic = null; }
+                try {
+                    indicateCharacteristic = await bleService.getCharacteristic(INDICATE_UUID);
+                    await indicateCharacteristic.startNotifications();
+                    indicateCharacteristic.addEventListener('characteristicvaluechanged', handleIndicate);
+                    log("EEE3 Indicate 已开启");
+                } catch (error) {
+                    log("EEE3 Indicate 获取失败：" + error.message);
+                }
+                try {
+                    notifyCharacteristic = await bleService.getCharacteristic(NOTIFY_UUID);
+                } catch (_) { notifyCharacteristic = null; }
+
+                dom.deviceName.textContent = bleDevice.name || BLE_DEVICE_NAME;
+                dom.bleStatus.textContent = "已连接";
+                dom.serviceInfo.textContent = "0xEEE0";
+                dom.rxInfo.textContent = "0xEEE1";
+                dom.indicateInfo.textContent = indicateCharacteristic ? "0xEEE3 已订阅" : "不可用";
+
+                dom.disconnectBtn.disabled = false;
+                updateSendButton();
+                log("BLE连接完成");
+            } catch (error) {
+                console.error(error);
+                log("连接失败：" + error.message);
+            }
+        }
+
+        /* =========================================================
+         * 断开
+         * ========================================================= */
+        dom.disconnectBtn.addEventListener('click', disconnectBLE);
+        function disconnectBLE() {
+            if (bleDevice && bleDevice.gatt.connected) {
+                bleDevice.gatt.disconnect();
+            }
+        }
+        function onDisconnected() {
+            log("BLE已断开");
+            dom.bleStatus.textContent = "未连接";
+            dom.disconnectBtn.disabled = true;
+            updateSendButton();
+        }
+
+        /* =========================================================
+         * 接收 Indicate
+         * ========================================================= */
+        function handleIndicate(event) {
+            const value = event.target.value;
+            const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+            const text = new TextDecoder().decode(bytes);
+            log("ESP32 -> " + text);
+            if (ackWaiter && text.startsWith("ACK+")) {
+                const match = text.match(/ACK\+(\d+)/);
+                if (match) {
+                    const ackNumber = parseInt(match[1]);
+                    const resolve = ackWaiter;
+                    ackWaiter = null;
+                    resolve(ackNumber);
+                }
+            }
+        }
+
+        /* =========================================================
+         * 等待ACK
+         * ========================================================= */
+        function waitForAck(timeout = 3000) {
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(() => {
+                    if (ackWaiter) {
+                        ackWaiter = null;
+                        reject(new Error("等待 ACK 超时"));
+                    }
+                }, timeout);
+                ackWaiter = (ackNumber) => {
+                    clearTimeout(timer);
+                    resolve(ackNumber);
+                };
+            });
+        }
+
+        /* =========================================================
+         * 发送字符串
+         * ========================================================= */
+        async function writeString(text) {
+            if (!rxCharacteristic) throw new Error("RX Characteristic不存在");
+            const data = new TextEncoder().encode(text);
+            log("网页 -> ESP32: " + text);
+            await rxCharacteristic.writeValueWithoutResponse(data);
+        }
+
+        /* =========================================================
+         * 图片选择
+         * ========================================================= */
+        dom.imageFile.addEventListener('change', handleImageFile);
+        async function handleImageFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            log("选择图片：" + file.name);
+            const image = new Image();
+            image.src = URL.createObjectURL(file);
+            await new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = reject;
+            });
+            originalImage = image;
+            dom.imageWidth.value = image.naturalWidth;
+            dom.imageHeight.value = image.naturalHeight;
+            drawOriginalImage();
+            convertImage();
+        }
+
+        /* =========================================================
+         * 使用原图尺寸
+         * ========================================================= */
+        dom.useOriginalSizeBtn.addEventListener('click', () => {
+            if (!originalImage) return;
+            dom.imageWidth.value = originalImage.naturalWidth;
+            dom.imageHeight.value = originalImage.naturalHeight;
+            convertImage();
+        });
+
+        /* =========================================================
+         * 参数改变
+         * ========================================================= */
+        dom.imageWidth.addEventListener('change', convertImage);
+        dom.imageHeight.addEventListener('change', convertImage);
+        dom.bitDepth.addEventListener('change', convertImage);
+        dom.scanMode.addEventListener('change', convertImage);
+        dom.invertCheckbox.addEventListener('change', convertImage);
+        dom.sendInvertCheckbox.addEventListener('change', convertImage);
+
+        /* =========================================================
+         * 绘制原图
+         * ========================================================= */
+        function drawOriginalImage() {
+            if (!originalImage) return;
+            const canvas = dom.originalCanvas;
+            const ctx = canvas.getContext('2d');
+            canvas.width = originalImage.naturalWidth;
+            canvas.height = originalImage.naturalHeight;
+            ctx.drawImage(originalImage, 0, 0);
+        }
+
+        /* =========================================================
+         * RGB -> 灰度
+         * ========================================================= */
+        function rgbToGray(r, g, b) {
+            return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        }
+
+        /* =========================================================
+         * 图片取模 (不包含反相)
+         * ========================================================= */
+        function imageToBitmap(imageData, width, height, bitDepth) {
+            const pixels = imageData.data;
+            if (bitDepth === 1) {
+                const bytesPerRow = Math.ceil(width / 8);
+                const result = new Uint8Array(bytesPerRow * height);
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const pos = (y * width + x) * 4;
+                        const gray = rgbToGray(pixels[pos], pixels[pos + 1], pixels[pos + 2]);
+                        if (gray < 128) {
+                            const byteIndex = y * bytesPerRow + Math.floor(x / 8);
+                            const bitIndex = 7 - (x % 8);
+                            result[byteIndex] |= (1 << bitIndex);
+                        }
+                    }
+                }
+                return result;
+            }
+            if (bitDepth === 2) {
+                const totalBytes = Math.ceil(width * height / 4);
+                const result = new Uint8Array(totalBytes);
+                for (let i = 0; i < width * height; i++) {
+                    const pos = i * 4;
+                    const gray = rgbToGray(pixels[pos], pixels[pos + 1], pixels[pos + 2]);
+                    const value = Math.round(gray * 3 / 255);
+                    const byteIndex = Math.floor(i / 4);
+                    const shift = 6 - (i % 4) * 2;
+                    result[byteIndex] |= value << shift;
+                }
+                return result;
+            }
+            if (bitDepth === 4) {
+                const totalBytes = Math.ceil(width * height / 2);
+                const result = new Uint8Array(totalBytes);
+                for (let i = 0; i < width * height; i++) {
+                    const pos = i * 4;
+                    const gray = rgbToGray(pixels[pos], pixels[pos + 1], pixels[pos + 2]);
+                    const value = Math.round(gray * 15 / 255);
+                    const byteIndex = Math.floor(i / 2);
+                    if ((i & 1) === 0) {
+                        result[byteIndex] |= value << 4;
+                    } else {
+                        result[byteIndex] |= value;
+                    }
+                }
+                return result;
+            }
+            if (bitDepth === 8) {
+                const result = new Uint8Array(width * height);
+                for (let i = 0; i < width * height; i++) {
+                    const pos = i * 4;
+                    result[i] = rgbToGray(pixels[pos], pixels[pos + 1], pixels[pos + 2]);
+                }
+                return result;
+            }
+            return new Uint8Array();
+        }
+
+        /* =========================================================
+         * 反相处理（发送端专用）
+         * ========================================================= */
+        function invertData(data, bitDepth) {
+            const result = new Uint8Array(data);
+            if (bitDepth === 1) {
+                for (let i = 0; i < result.length; i++) {
+                    result[i] = ~result[i] & 0xFF;
+                }
+                return result;
+            }
+            if (bitDepth === 2) {
+                for (let i = 0; i < result.length; i++) {
+                    let b = result[i];
+                    let out = 0;
+                    for (let shift = 6; shift >= 0; shift -= 2) {
+                        let val = (b >> shift) & 0x03;
+                        val = 3 - val;
+                        out |= val << shift;
+                    }
+                    result[i] = out;
+                }
+                return result;
+            }
+            if (bitDepth === 4) {
+                for (let i = 0; i < result.length; i++) {
+                    let b = result[i];
+                    let high = (b >> 4) & 0x0F;
+                    let low = b & 0x0F;
+                    high = 15 - high;
+                    low = 15 - low;
+                    result[i] = (high << 4) | low;
+                }
+                return result;
+            }
+            if (bitDepth === 8) {
+                for (let i = 0; i < result.length; i++) {
+                    result[i] = 255 - result[i];
+                }
+                return result;
+            }
+            return result;
+        }
+
+        /* =========================================================
+         * 预览反相处理（仅影响画布，不影响发送数据）
+         * ========================================================= */
+        function previewInvertData(data, bitDepth) {
+            const result = new Uint8Array(data);
+            if (bitDepth === 1) {
+                for (let i = 0; i < result.length; i++) {
+                    result[i] = ~result[i] & 0xFF;
+                }
+                return result;
+            }
+            if (bitDepth === 2) {
+                for (let i = 0; i < result.length; i++) {
+                    let b = result[i];
+                    let out = 0;
+                    for (let shift = 6; shift >= 0; shift -= 2) {
+                        let val = (b >> shift) & 0x03;
+                        val = 3 - val;
+                        out |= val << shift;
+                    }
+                    result[i] = out;
+                }
+                return result;
+            }
+            if (bitDepth === 4) {
+                for (let i = 0; i < result.length; i++) {
+                    let b = result[i];
+                    let high = (b >> 4) & 0x0F;
+                    let low = b & 0x0F;
+                    high = 15 - high;
+                    low = 15 - low;
+                    result[i] = (high << 4) | low;
+                }
+                return result;
+            }
+            if (bitDepth === 8) {
+                for (let i = 0; i < result.length; i++) {
+                    result[i] = 255 - result[i];
+                }
+                return result;
+            }
+            return result;
+        }
+
+        /* =========================================================
+         * 核心：转换图片（取模 + 预览反相 + 发送反相）
+         * ========================================================= */
+        function convertImage() {
+            if (!originalImage) return;
+            const width = parseInt(dom.imageWidth.value);
+            const height = parseInt(dom.imageHeight.value);
+            const bitDepth = parseInt(dom.bitDepth.value);
+            const previewInvertEnabled = dom.invertCheckbox.checked;
+            const sendInvertEnabled = dom.sendInvertCheckbox.checked;
+
+            if (width <= 0 || height <= 0) return;
+
+            // 1. 缩放绘制到临时 canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(originalImage, 0, 0, width, height);
+            const imageData = ctx.getImageData(0, 0, width, height);
+
+            // 2. 取模
+            let data = imageToBitmap(imageData, width, height, bitDepth);
+
+            // 3. 预览反相（仅影响画布）
+            const previewData = previewInvertData(data, bitDepth);
+
+            // 4. 发送反相（影响最终发送数据）
+            if (sendInvertEnabled) {
+                data = invertData(data, bitDepth);
+            }
+
+            convertedData = data;
+
+            // 5. 更新信息
+            dom.sizeInfo.textContent = `${width} × ${height}`;
+            dom.dataSizeInfo.textContent = `${convertedData.length} Bytes`;
+
+            packetTotal = Math.ceil(convertedData.length / packetSize);
+            dom.packetSizeInfo.textContent = `${packetSize} Bytes data`;
+            dom.packetCountInfo.textContent = packetTotal;
+
+            // 6. 绘制预览（已应用预览反相）
+            drawConvertedPreview(width, height, bitDepth, previewData);
+
+            // 7. 更新发送按钮
+            updateSendButton();
+        }
+
+        /* =========================================================
+         * 绘制取模预览（已应用预览反相）
+         * ========================================================= */
+        function drawConvertedPreview(width, height, bitDepth, data) {
+            const canvas = dom.previewCanvas;
+            const ctx = canvas.getContext('2d');
+            canvas.width = width;
+            canvas.height = height;
+            const imageData = ctx.createImageData(width, height);
+            const pixels = imageData.data;
+            const totalPixels = width * height;
+
+            for (let i = 0; i < totalPixels; i++) {
+                let value = 0;
+                if (bitDepth === 1) {
+                    const byteIndex = i >> 3;
+                    const bitIndex = 7 - (i & 7);
+                    value = (data[byteIndex] >> bitIndex) & 1;
+                    value = value ? 0 : 255; // 1->黑(0), 0->白(255)
+                } else if (bitDepth === 2) {
+                    const byteIndex = i >> 2;
+                    const shift = 6 - (i & 3) * 2;
+                    value = (data[byteIndex] >> shift) & 3;
+                    value = Math.round(value * 255 / 3);
+                } else if (bitDepth === 4) {
+                    const byteIndex = i >> 1;
+                    if ((i & 1) === 0) {
+                        value = (data[byteIndex] >> 4) & 0x0F;
+                    } else {
+                        value = data[byteIndex] & 0x0F;
+                    }
+                    value = Math.round(value * 255 / 15);
+                } else if (bitDepth === 8) {
+                    value = data[i];
+                }
+
+                // === 预览反相应用 ===
+                if (dom.invertCheckbox.checked) {
+                    value = 255 - value;
+                }
+
+                const pos = i * 4;
+                pixels[pos] = value;
+                pixels[pos + 1] = value;
+                pixels[pos + 2] = value;
+                pixels[pos + 3] = 255;
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        /* =========================================================
+         * 更新发送按钮
+         * ========================================================= */
+        function updateSendButton() {
+            const connected = bleDevice && bleDevice.gatt && bleDevice.gatt.connected;
+            dom.sendBtn.disabled = !(connected && rxCharacteristic && indicateCharacteristic && convertedData);
+        }
+
+        /* =========================================================
+         * 发送图片
+         * ========================================================= */
+        dom.sendBtn.addEventListener('click', sendImage);
+        async function sendImage() {
+            if (!convertedData) {
+                alert("请先选择图片");
+                return;
+            }
+            if (!rxCharacteristic || !indicateCharacteristic) {
+                alert("BLE RX 或 Indicate 不可用");
+                return;
+            }
+            const width = parseInt(dom.imageWidth.value);
+            const height = parseInt(dom.imageHeight.value);
+            const bitDepth = parseInt(dom.bitDepth.value);
+            try {
+                dom.sendBtn.disabled = true;
+                setProgress(0, "准备发送...");
+                // ---------- 1. UPDATE_IMAGE ----------
+                await writeString("UPDATE_IMAGE");
+                await sleep(100);
+                // ---------- 2. PICINFO ----------
+                packetTotal = Math.ceil(convertedData.length / packetSize);
+                const totalSize = packetTotal * packetSize;
+                const paddedData = new Uint8Array(totalSize);
+                paddedData.set(convertedData);
+                const picInfo =
+                    `PICINFO width:${width} heigh:${height} order:0 size:${totalSize} Total:${packetTotal}`;
+                log("发送图片信息：" + picInfo);
+                await writeString(picInfo);
+                setProgress(0, "等待 ESP32 ACK+0...");
+                const infoAck = await waitForAck(5000);
+                log("收到图片信息ACK：" + infoAck);
+                if (infoAck !== 0) {
+                    throw new Error("图片信息ACK错误：" + infoAck);
+                }
+                // ---------- 3. 发送图片数据 ----------
+                for (let index = 0; index < packetTotal; index++) {
+                    const start = index * packetSize;
+                    const end = start + packetSize;
+                    const packetData = paddedData.slice(start, end);
+                    const packet = new Uint8Array(4 + packetData.length);
+                    packet[0] = index & 0xff;
+                    packet[1] = (index >> 8) & 0xff;
+                    packet[2] = packetSize & 0xff;
+                    packet[3] = (packetSize >> 8) & 0xff;
+                    packet.set(packetData, 4);
+                    log(`发送 ${index + 1}/${packetTotal}`);
+                    await rxCharacteristic.writeValueWithoutResponse(packet);
+                    const ack = await waitForAck(5000);
+                    const expected = index + 1;
+                    if (ack !== expected) {
+                        throw new Error(`ACK错误：收到 ACK+${ack}，期望 ACK+${expected}`);
+                    }
+                    const percent = Math.round(((index + 1) / packetTotal) * 100);
+                    setProgress(percent, `发送中 ${index + 1}/${packetTotal}`);
+                    await sleep(5);
+                }
+                // ---------- 4. 完成 ----------
+                setProgress(100, "图片发送完成");
+                log("图片全部发送完成");
+                await sleep(300);
+                await writeString("EXIT");
+                log("发送 EXIT");
+            } catch (error) {
+                console.error(error);
+                log("发送失败：" + error.message);
+                setProgress(0, "发送失败");
+            } finally {
+                updateSendButton();
+            }
+        }
+
+        /* =========================================================
+         * 进度条
+         * ========================================================= */
+        function setProgress(percent, text) {
+            dom.progressBar.style.width = percent + "%";
+            dom.progressText.textContent = text;
+        }
+
+        /* =========================================================
+         * sleep
+         * ========================================================= */
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        /* =========================================================
+         * 初始化
+         * ========================================================= */
+        if (!navigator.bluetooth) {
+            log("当前浏览器不支持 Web Bluetooth。请使用 Chrome / Edge。");
+        } else {
+            log("Web Bluetooth 可用");
+        }
+        updateSendButton();
+    </script>
+</body>
+</html>

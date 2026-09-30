@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLE 自动枚举与调试工具</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --text: #1e293b; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { margin-top: 0; font-size: 1.25rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        
+        /* 按钮与输入框样式 */
+        button { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #cbd5e1; cursor: not-allowed; }
+        input[type="text"], input[type="password"], input[type="number"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; width: 200px; margin-right: 10px; }
+        
+        /* 布局辅助 */
+        .row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+        .log-box { background: #1e293b; color: #10b981; font-family: monospace; padding: 15px; border-radius: 6px; height: 200px; overflow-y: auto; font-size: 0.9rem; white-space: pre-wrap; }
+        
+        /* 枚举树状图样式 */
+        .tree-node { margin-left: 20px; border-left: 1px solid #e2e8f0; padding-left: 10px; margin-top: 5px; }
+        .uuid-tag { font-family: monospace; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; }
+        .prop-tag { font-size: 0.75rem; color: #64748b; margin-left: 5px; }
+
+        /* 图片预览 */
+        #preview-container { margin-top: 10px; max-width: 300px; border: 1px dashed #ccc; display: none; }
+        #preview-img { width: 100%; display: block; }
+    </style>
+</head>
+<body>
+
+    <h1>📡 BLE 调试与配网工具</h1>
+
+    <!-- 1. 连接控制 -->
+    <div class="card">
+        <h2>1. 设备连接与枚举</h2>
+        <div class="row">
+            <button id="btn-scan">🔍 扫描并连接设备</button>
+            <span id="status-text" style="margin-left: 10px; color: #64748b;">未连接</span>
+        </div>
+        <div id="device-tree" style="margin-top: 15px;">
+            <p style="color:#94a3b8; font-style: italic;">连接后此处将自动显示所有服务和特征...</p>
+        </div>
+    </div>
+
+    <!-- 2. 配网功能 -->
+    <div class="card">
+        <h2>2. Wi-Fi 配网</h2>
+        <div class="row">
+            <input type="text" id="wifi-ssid" placeholder="Wi-Fi SSID (名称)">
+            <input type="password" id="wifi-pass" placeholder="Wi-Fi 密码">
+            <button id="btn-provision" disabled>发送配网指令</button>
+        </div>
+        <p style="font-size: 0.85rem; color: #64748b;">协议格式: SSID:[name] PAK:[pass] | 等待 Indicate: "net info rec"</p>
+    </div>
+
+    <!-- 3. 图片发送功能 -->
+    <div class="card">
+        <h2>3. 图片 OTA 发送</h2>
+        <div class="row">
+            <input type="file" id="file-input" accept="image/*">
+            <label>宽: <input type="number" id="img-w" value="128" style="width: 60px;"></label>
+            <label>高: <input type="number" id="img-h" value="128" style="width: 60px;"></label>
+            <label>分包大小: <input type="number" id="chunk-size" value="200" style="width: 60px;"></label>
+        </div>
+        <div id="preview-container"><img id="preview-img"></div>
+        <div class="row" style="margin-top: 10px;">
+            <button id="btn-send-img" disabled>🚀 开始发送图片</button>
+        </div>
+    </div>
+
+    <!-- 日志区域 -->
+    <div class="card">
+        <h2>系统日志</h2>
+        <div class="log-box" id="log"></div>
+    </div>
+
+<script>
+    // --- 全局变量 ---
+    let bleServer = null;
+    let writeChar = null; // 用于写入指令的特征
+    let indicateChar = null; // 用于接收 Indicate 的特征
+    
+    // --- 工具函数 ---
+    const log = (msg) => {
+        const el = document.getElementById('log');
+        const time = new Date().toLocaleTimeString();
+        el.innerText += `[${time}] ${msg}\n`;
+        el.scrollTop = el.scrollHeight;
+        console.log(msg);
+    };
+
+    const buf2hex = (buffer) => [...new Uint8Array(buffer)].map(x => x.toString(16).padStart(2, '0')).join(' ');
+    const str2buf = (str) => new TextEncoder().encode(str);
+    const buf2str = (buffer) => new TextDecoder().decode(buffer);
+
+    // --- 1. 扫描与枚举逻辑 ---
+    document.getElementById('btn-scan').addEventListener('click', async () => {
+        try {
+            log('正在请求蓝牙设备...');
+            
+            // 关键修改：使用 acceptAllDevices: true 移除过滤限制
+            // 这样即使不知道 UUID 也能连上设备
+            bleServer = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true, 
+                optionalServices: [] // 留空，后续手动获取所有服务
+            });
+
+            log(`已选择设备: ${bleServer.name || 'Unknown'} (${bleServer.id})`);
+            document.getElementById('status-text').innerText = '正在连接 GATT...';
+
+            bleServer.addEventListener('gattserverdisconnected', onDisconnected);
+            const server = await bleServer.gatt.connect();
+            log('GATT 连接成功！开始枚举服务...');
+            document.getElementById('status-text').innerText = '已连接';
+
+            // 启用按钮
+            document.getElementById('btn-provision').disabled = false;
+            document.getElementById('btn-send-img').disabled = false;
+
+            // 执行自动枚举
+            await enumerateDevice(server);
+
+        } catch (error) {
+            log(`❌ 错误: ${error.message}`);
+            if(error.message.includes("User cancelled")) log("提示：请在弹出的窗口中选择一个设备。");
+        }
+    });
+
+    async function enumerateDevice(server) {
+        const treeContainer = document.getElementById('device-tree');
+        treeContainer.innerHTML = ''; // 清空旧数据
+        
+        // 获取主服务
+        const services = await server.getPrimaryServices();
+        log(`发现 ${services.length} 个主服务`);
+
+        for (const service of services) {
+            const serviceDiv = document.createElement('div');
+            serviceDiv.className = 'tree-node';
+            serviceDiv.innerHTML = `<strong>📂 Service:</strong> <span class="uuid-tag">${service.uuid}</span>`;
+            treeContainer.appendChild(serviceDiv);
+
+            // 获取特征值
+            const characteristics = await service.getCharacteristics();
+            
+            for (const char of characteristics) {
+                const charDiv = document.createElement('div');
+                charDiv.className = 'tree-node';
+                
+                // 解析属性 (Read, Write, Notify, Indicate)
+                const props = [];
+                if (char.properties.write) props.push("Write");
+                if (char.properties.writeWithoutResponse) props.push("WriteNoRsp");
+                if (char.properties.read) props.push("Read");
+                if (char.properties.notify) props.push("Notify");
+                if (char.properties.indicate) props.push("Indicate");
+
+                let html = `<strong>🏷 Char:</strong> <span class="uuid-tag">${char.uuid}</span>`;
+                html += `<span class="prop-tag">[${props.join(', ')}]</span>`;
+                charDiv.innerHTML = html;
+                serviceDiv.appendChild(charDiv);
+
+                // 自动绑定逻辑：寻找最可能的写入和指示特征
+                // 这里做一个简单的启发式匹配，或者你可以手动指定 UUID
+                autoBindCharacteristics(char);
+
+                // 如果是 Indicate 或 Notify，自动开始监听
+                if (char.properties.indicate || char.properties.notify) {
+                    await char.startNotifications();
+                    char.addEventListener('characteristicvaluechanged', handleNotifications);
+                    log(`👂 已开启监听: ${char.uuid.substring(0,8)}...`);
+                }
+
+                // 获取描述符 (Descriptors)
+                try {
+                    const descriptors = await char.getDescriptors();
+                    for (const desc of descriptors) {
+                        const descDiv = document.createElement('div');
+                        descDiv.className = 'tree-node';
+                        descDiv.style.fontSize = '0.9em';
+                        descDiv.innerHTML = `📝 Desc: <span class="uuid-tag">${desc.uuid}</span>`;
+                        charDiv.appendChild(descDiv);
+                    }
+                } catch(e) { /* 忽略描述符读取错误 */ }
+            }
+        }
+    }
+
+    // 简单的特征自动匹配逻辑
+    function autoBindCharacteristics(char) {
+        // 如果你有特定的 UUID 规则，可以在这里修改
+        // 这里默认找第一个可写的作为 WriteChar，第一个可 Indicate 的作为 IndicateChar
+        if (!writeChar && (char.properties.write || char.properties.writeWithoutResponse)) {
+            writeChar = char;
+            log(`✅ 自动绑定写入特征: ${char.uuid}`);
+        }
+        if (!indicateChar && char.properties.indicate) {
+            indicateChar = char;
+            log(`✅ 自动绑定指示特征: ${char.uuid}`);
+        }
+    }
+
+    function onDisconnected(event) {
+        log('⚠️ 设备已断开连接');
+        document.getElementById('status-text').innerText = '未连接';
+        document.getElementById('btn-provision').disabled = true;
+        document.getElementById('btn-send-img').disabled = true;
+        writeChar = null;
+        indicateChar = null;
+    }
+
+    // --- 统一接收处理 (Indicate/Notify) ---
+    async function handleNotifications(event) {
+        const value = event.target.value;
+        const strVal = buf2str(value);
+        log(`📥 收到数据 (${event.target.characteristic.uuid.substr(0,8)}...): ${strVal}`);
+
+        // 处理配网回复
+        if (strVal.includes("net info rec")) {
+            log("🎉 配网成功：设备已收到信息");
+            alert("配网成功！");
+        }
+
+        // 处理图片发送握手流程
+        if (imgSendState === 'WAITING_ENTER' && strVal.includes("Enter Image Update")) {
+            log("🤝 握手成功：进入图片更新模式，发送尺寸信息...");
+            sendImageMeta();
+        }
+        else if (imgSendState === 'WAITING_UPDATE_ACK' && strVal.includes("update")) {
+            log("🤝 尺寸确认：开始发送数据包...");
+            imgSendState = 'SENDING_DATA';
+            sendNextChunk();
+        }
+        else if (imgSendState === 'SENDING_DATA') {
+            // 期望格式: ack+index
+            if (strVal.startsWith("ack")) {
+                const ackIndex = parseInt(strVal.replace("ack", ""));
+                handleImageAck(ackIndex);
+            }
+        }
+        else if (imgSendState === 'WAITING_EXIT' && strVal.includes("Exit")) {
+            log("🏁 流程结束：图片发送完成");
+            imgSendState = 'IDLE';
+            alert("图片发送完成！");
+        }
+    }
+
+    // --- 2. 配网功能 ---
+    document.getElementById('btn-provision').addEventListener('click', async () => {
+        if (!writeChar) return log("❌ 未找到可写特征");
+        
+        const ssid = document.getElementById('wifi-ssid').value;
+        const pass = document.getElementById('wifi-pass').value;
+        
+        if (!ssid || !pass) return log("❌ 请输入 SSID 和密码");
+
+        // 格式: SSID:[实际的wifiSSID] PAK:[wifi密码]
+        const payload = `SSID:${ssid} PAK:${pass}`;
+        log(`📤 发送配网: ${payload}`);
+        
+        await writeChar.writeValueWithoutResponse(str2buf(payload));
+    });
+
+    // --- 3. 图片发送逻辑 ---
+    let imgData = null; // Uint8Array
+    let imgTotalChunks = 0;
+    let currentChunkIndex = 0;
+    let chunkSize = 200;
+    
+    // 状态机: IDLE, WAITING_ENTER, WAITING_UPDATE_ACK, SENDING_DATA, WAITING_EXIT
+    let imgSendState = 'IDLE'; 
+
+    // 图片预处理
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = () => {
+            const w = parseInt(document.getElementById('img-w').value);
+            const h = parseInt(document.getElementById('img-h').value);
+            canvas.width = w;
+            canvas.height = h;
+            
+            // 裁剪/缩放绘制
+            ctx.drawImage(img, 0, 0, w, h);
+            
+            // 获取 Raw Data (RGBA)
+            const imageData = ctx.getImageData(0, 0, w, h);
+            imgData = new Uint8Array(imageData.data.buffer); // 注意：这是 RGBA 格式
+            
+            // 显示预览
+            document.getElementById('preview-container').style.display = 'block';
+            document.getElementById('preview-img').src = canvas.toDataURL();
+            
+            log(`🖼 图片已加载: ${w}x${h}, 大小: ${imgData.length} bytes`);
+        };
+        img.src = URL.createObjectURL(file);
+    });
+
+    document.getElementById('btn-send-img').addEventListener('click', async () => {
+        if (!writeChar || !imgData) return log("❌ 请连接设备并选择图片");
+        
+        chunkSize = parseInt(document.getElementById('chunk-size').value);
+        const w = parseInt(document.getElementById('img-w').value);
+        const h = parseInt(document.getElementById('img-h').value);
+        
+        // 计算总包数
+        imgTotalChunks = Math.ceil(imgData.length / chunkSize);
+        currentChunkIndex = 0;
+        
+        log(`🚀 开始发送流程... 总包数: ${imgTotalChunks}`);
+        
+        // 1. 发送 Update Image 指令
+        imgSendState = 'WAITING_ENTER';
+        await writeChar.writeValueWithoutResponse(str2buf("update Image"));
+    });
+
+    async function sendImageMeta() {
+        const w = parseInt(document.getElementById('img-w').value);
+        const h = parseInt(document.getElementById('img-h').value);
+        
+        // 协议: Width+heigh+总包数+分包大小
+        // 假设是用字符串发送，如果是

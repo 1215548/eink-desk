@@ -1,0 +1,4501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>BLE Device Tool</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family:
+        Arial,
+        "Microsoft YaHei",
+        sans-serif;
+
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.header {
+    height: 60px;
+    background: #1f2937;
+    color: white;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 25px;
+
+    font-size: 25px;
+    font-weight: bold;
+}
+
+.container {
+    width: calc(100% - 80px);
+    margin: 20px auto;
+}
+
+.card {
+    background: white;
+
+    border-radius: 12px;
+
+    padding: 20px;
+
+    margin-bottom: 20px;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.08);
+}
+
+.card h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+
+    font-size: 23px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 15px;
+}
+
+.label {
+    width: 150px;
+
+    font-size: 17px;
+}
+
+input,
+select,
+textarea {
+
+    border: 1px solid #cbd5e1;
+
+    border-radius: 6px;
+
+    padding: 9px 12px;
+
+    font-size: 15px;
+
+    background: white;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"] {
+
+    min-width: 220px;
+}
+
+textarea {
+
+    width: 100%;
+
+    min-height: 100px;
+
+    resize: vertical;
+}
+
+button {
+
+    border: none;
+
+    border-radius: 6px;
+
+    padding: 10px 18px;
+
+    font-size: 15px;
+
+    cursor: pointer;
+
+    color: white;
+
+    background: #2563eb;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.btn-green {
+    background: #16a34a;
+}
+
+.btn-red {
+    background: #dc2626;
+}
+
+.btn-gray {
+    background: #64748b;
+}
+
+.btn-orange {
+    background: #ea580c;
+}
+
+.status {
+
+    display: inline-block;
+
+    padding: 7px 15px;
+
+    border-radius: 6px;
+
+    background: #dcfce7;
+
+    color: #15803d;
+}
+
+.status.disconnected {
+
+    background: #fee2e2;
+
+    color: #b91c1c;
+}
+
+/* =============================
+   GATT table
+============================= */
+
+.gatt-table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    font-size: 14px;
+}
+
+.gatt-table th {
+
+    background: #f8fafc;
+
+    padding: 12px;
+
+    border-bottom: 1px solid #e5e7eb;
+
+    text-align: left;
+}
+
+.gatt-table td {
+
+    padding: 10px;
+
+    border-bottom: 1px solid #e5e7eb;
+
+    vertical-align: top;
+}
+
+.uuid {
+
+    font-family:
+        Consolas,
+        monospace;
+
+    word-break: break-all;
+}
+
+.service-row {
+
+    background: #eff6ff;
+
+    font-weight: bold;
+}
+
+.property {
+
+    display: inline-block;
+
+    padding: 3px 7px;
+
+    margin: 2px;
+
+    border-radius: 4px;
+
+    font-size: 12px;
+
+    background: #e5e7eb;
+}
+
+.property.read {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.property.write {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.property.notify {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.property.indicate {
+    background: #fce7f3;
+    color: #9d174d;
+}
+
+.descriptor {
+
+    font-family: Consolas, monospace;
+
+    color: #64748b;
+
+    margin-top: 4px;
+
+    font-size: 12px;
+}
+
+.char-actions {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 5px;
+}
+
+/* =============================
+   log
+============================= */
+
+.log {
+
+    background: #111827;
+
+    color: #d1d5db;
+
+    font-family: Consolas, monospace;
+
+    height: 280px;
+
+    overflow-y: auto;
+
+    padding: 12px;
+
+    border-radius: 8px;
+
+    font-size: 13px;
+
+    white-space: pre-wrap;
+}
+
+.log-info {
+    color: #60a5fa;
+}
+
+.log-ok {
+    color: #4ade80;
+}
+
+.log-error {
+    color: #f87171;
+}
+
+.log-warn {
+    color: #facc15;
+}
+
+/* =============================
+   custom UUID
+============================= */
+
+.uuid-box {
+
+    background: #f8fafc;
+
+    padding: 15px;
+
+    border-radius: 8px;
+
+    border: 1px solid #e2e8f0;
+}
+
+/* =============================
+   wifi
+============================= */
+
+.two-column {
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 20px;
+}
+
+.panel {
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 8px;
+
+    padding: 15px;
+}
+
+/* =============================
+   image
+============================= */
+
+.image-preview {
+
+    display: flex;
+
+    gap: 20px;
+
+    align-items: flex-start;
+
+    flex-wrap: wrap;
+}
+
+#previewCanvas {
+
+    max-width: 400px;
+
+    max-height: 400px;
+
+    border: 1px solid #cbd5e1;
+
+    background:
+        repeating-conic-gradient(#eee 0% 25%, white 0% 50%)
+        50% / 20px 20px;
+}
+
+.image-info {
+
+    line-height: 1.8;
+
+    font-size: 14px;
+}
+
+.progress-container {
+
+    width: 100%;
+
+    background: #e5e7eb;
+
+    border-radius: 8px;
+
+    height: 25px;
+
+    overflow: hidden;
+
+    margin-top: 10px;
+}
+
+.progress-bar {
+
+    height: 100%;
+
+    width: 0%;
+
+    background: #2563eb;
+
+    transition: width 0.1s;
+}
+
+.progress-text {
+
+    margin-top: 6px;
+
+    font-family: Consolas, monospace;
+}
+
+/* =============================
+   responsive
+============================= */
+
+@media(max-width: 900px) {
+
+    .container {
+        width: calc(100% - 20px);
+    }
+
+    .two-column {
+        grid-template-columns: 1fr;
+    }
+
+    .label {
+        width: 120px;
+    }
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+    BLE Device Tool
+</div>
+
+<div class="container">
+
+<!-- =========================================================
+     1. BLE DEVICE
+========================================================= -->
+
+<div class="card">
+
+<h2>1. 蓝牙设备</h2>
+
+<div class="row">
+
+<button
+    id="scanButton"
+    onclick="scanDevice()">
+    扫描设备
+</button>
+
+<button
+    id="disconnectButton"
+    class="btn-red"
+    onclick="disconnectDevice()"
+    disabled>
+    断开
+</button>
+
+<span
+    id="connectionStatus"
+    class="status disconnected">
+    未连接
+</span>
+
+</div>
+
+<div class="row">
+
+<div class="label">
+设备名称：
+</div>
+
+<div id="deviceName">
+-
+</div>
+
+</div>
+
+<div class="row">
+
+<div class="label">
+Device ID：
+</div>
+
+<div id="deviceId">
+-
+</div>
+
+</div>
+
+</div>
+
+
+<!-- =========================================================
+     2. CUSTOM SERVICE UUID
+========================================================= -->
+
+<div class="card">
+
+<h2>2. 自定义 Service UUID 授权</h2>
+
+<div class="uuid-box">
+
+<p>
+Web Bluetooth 要访问 ESP32 的自定义 Service，
+必须在连接之前通过 optionalServices 授权。
+</p>
+
+<p>
+每行填写一个 Service UUID。
+</p>
+
+<textarea
+id="customUuidInput"
+placeholder="例如：
+12345678-1234-1234-1234-123456789abc
+7659
+0x7659"></textarea>
+
+<br><br>
+
+<button onclick="addCustomUUID()">
+加入授权列表
+</button>
+
+<button
+class="btn-gray"
+onclick="clearCustomUUID()">
+清空
+</button>
+
+<div id="uuidList"
+style="margin-top:15px;">
+</div>
+
+</div>
+
+</div>
+
+
+<!-- =========================================================
+     3. GATT
+========================================================= -->
+
+<div class="card">
+
+<h2>3. GATT 服务 / 特征 / 描述符</h2>
+
+<table class="gatt-table">
+
+<thead>
+
+<tr>
+
+<th style="width:15%">
+Service UUID
+</th>
+
+<th style="width:20%">
+Characteristic UUID
+</th>
+
+<th style="width:22%">
+Properties
+</th>
+
+<th style="width:18%">
+Descriptors
+</th>
+
+<th style="width:25%">
+操作
+</th>
+
+</tr>
+
+</thead>
+
+<tbody id="gattTable">
+
+<tr>
+
+<td colspan="5">
+
+尚未连接设备
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+
+<!-- =========================================================
+     4. MANUAL BLE
+========================================================= -->
+
+<div class="card">
+
+<h2>4. BLE 手动操作</h2>
+
+<div class="row">
+
+<div class="label">
+写入特征：
+</div>
+
+<select id="manualWriteChar">
+
+<option value="">
+请选择
+</option>
+
+</select>
+
+</div>
+
+<div class="row">
+
+<div class="label">
+通知/指示特征：
+</div>
+
+<select id="manualNotifyChar">
+
+<option value="">
+请选择
+</option>
+
+</select>
+
+<button onclick="subscribeSelected()">
+订阅
+</button>
+
+</div>
+
+<div class="row">
+
+<div class="label">
+写入方式：
+</div>
+
+<select id="manualWriteMode">
+
+<option value="write">
+Write With Response
+</option>
+
+<option value="writeWithoutResponse">
+Write Without Response
+</option>
+
+</select>
+
+</div>
+
+<div>
+
+<div class="label">
+数据：
+</div>
+
+<textarea
+id="manualData"
+placeholder="输入 ASCII 或 HEX"></textarea>
+
+<br>
+
+<select id="manualDataMode">
+
+<option value="text">
+ASCII
+</option>
+
+<option value="hex">
+HEX
+</option>
+
+</select>
+
+<button onclick="manualWrite()">
+写入
+</button>
+
+<button
+class="btn-gray"
+onclick="manualRead()">
+读取
+</button>
+
+</div>
+
+</div>
+
+
+<!-- =========================================================
+     5. WIFI
+========================================================= -->
+
+<div class="card">
+
+<h2>5. Wi-Fi 配网</h2>
+
+<div class="two-column">
+
+<div class="panel">
+
+<div class="row">
+
+<div class="label">
+Wi-Fi SSID：
+</div>
+
+<input
+id="wifiSSID"
+type="text"
+placeholder="Wi-Fi SSID">
+
+</div>
+
+<div class="row">
+
+<div class="label">
+Wi-Fi 密码：
+</div>
+
+<input
+id="wifiPassword"
+type="password"
+placeholder="Wi-Fi Password">
+
+</div>
+
+<div class="row">
+
+<div class="label">
+配网写入特征：
+</div>
+
+<select id="wifiWriteChar">
+
+<option value="">
+请选择
+</option>
+
+</select>
+
+</div>
+
+<div class="row">
+
+<div class="label">
+回复特征：
+</div>
+
+<select id="wifiNotifyChar">
+
+<option value="">
+请选择
+</option>
+
+</select>
+
+</div>
+
+<button
+class="btn-green"
+onclick="startWifiConfig()">
+
+开始配网
+
+</button>
+
+</div>
+
+
+<div class="panel">
+
+<h3>
+实际发送
+</h3>
+
+<pre
+id="wifiActualSend"
+style="
+background:#f8fafc;
+padding:15px;
+white-space:pre-wrap;
+">
+-
+</pre>
+
+<h3>
+设备回复
+</h3>
+
+<pre
+id="wifiResponse"
+style="
+background:#f8fafc;
+padding:15px;
+white-space:pre-wrap;
+">
+-
+</pre>
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- =========================================================
+     6. IMAGE
+========================================================= -->
+
+<div class="card">
+
+<h2>6. 图片发送</h2>
+
+<div class="panel">
+
+<div class="row">
+
+<div class="label">
+选择图片：
+</div>
+
+<input
+id="imageFile"
+type="file"
+accept="image/*"
+onchange="loadImage(event)">
+
+</div>
+
+
+<div class="row">
+
+<div class="label">
+目标宽度：
+</div>
+
+<input
+id="imageWidth"
+type="number"
+value="240">
+
+<div>
+px
+</div>
+
+</div>
+
+
+<div class="row">
+
+<div class="label">
+目标高度：
+</div>
+
+<input
+id="imageHeight"
+type="number"
+value="320">
+
+<div>
+px
+</div>
+
+</div>
+
+
+<div class="row">
+
+<div class="label">
+图片格式：
+</div>
+
+<select id="imageFormat">
+
+<option value="rgb565">
+RGB565
+</option>
+
+<option value="gray8">
+GRAY8
+</option>
+
+<option value="rgb888">
+RGB888
+</option>
+
+</select>
+
+</div>
+
+
+<div class="row">
+
+<div class="label">
+分包大小：
+</div>
+
+<input
+id="packetSize"
+type="number"
+value="200"
+min="1"
+max="512">
+
+<div>
+Bytes
+</div>
+
+</div>
+
+
+<div class="row">
+
+<div class="label">
+写入特征：
+</div>
+
+<select id="imageWriteChar">
+
+<option value="">
+请选择
+</option>
+
+</select>
+
+</div>
+
+
+<div class="row">
+
+<div class="label">
+回复特征：
+</div>
+
+<select id="imageNotifyChar">
+
+<option value="">
+请选择
+</option>
+
+</select>
+
+</div>
+
+</div>
+
+
+<br>
+
+
+<div class="image-preview">
+
+<div>
+
+<canvas
+id="previewCanvas"
+width="240"
+height="320">
+</canvas>
+
+</div>
+
+<div class="image-info">
+
+<div>
+原始尺寸：
+<span id="originalSize">
+-
+</span>
+</div>
+
+<div>
+目标尺寸：
+<span id="targetSize">
+-
+</span>
+</div>
+
+<div>
+原始数据：
+<span id="rawSize">
+-
+</span>
+</div>
+
+<div>
+总包数：
+<span id="totalPackets">
+-
+</span>
+</div>
+
+</div>
+
+</div>
+
+
+<br>
+
+
+<button
+class="btn-orange"
+id="sendImageButton"
+onclick="startImageUpdate()"
+disabled>
+
+发送图片
+
+</button>
+
+
+<button
+class="btn-red"
+onclick="cancelImageTransfer()">
+
+停止发送
+
+</button>
+
+
+<div class="progress-container">
+
+<div
+id="progressBar"
+class="progress-bar">
+</div>
+
+</div>
+
+<div
+id="progressText"
+class="progress-text">
+
+等待发送
+
+</div>
+
+</div>
+
+
+<!-- =========================================================
+     7. LOG
+========================================================= -->
+
+<div class="card">
+
+<h2>7. 通信日志</h2>
+
+<div
+id="log"
+class="log">
+等待操作...
+</div>
+
+</div>
+
+</div>
+
+
+<script>
+
+/****************************************************************
+ * BLE GLOBAL STATE
+ ****************************************************************/
+
+let bluetoothDevice = null;
+
+let gattServer = null;
+
+let services = [];
+
+let characteristics = [];
+
+let characteristicMap = new Map();
+
+let customUUIDs = new Set();
+
+let subscribedCharacteristics = new Set();
+
+let notificationWaiters = [];
+
+let imageSending = false;
+
+
+/****************************************************************
+ * DEFAULT CUSTOM SERVICE
+ *
+ * 如果你的 ESP32 使用固定的 128-bit Service UUID，
+ * 可以直接写到这里。
+ *
+ * 例如：
+ *
+ * const DEFAULT_CUSTOM_SERVICES = [
+ *     "12345678-1234-1234-1234-123456789abc"
+ * ];
+ *
+ ****************************************************************/
+
+const DEFAULT_CUSTOM_SERVICES = [
+
+    /*
+    "12345678-1234-1234-1234-123456789abc"
+    */
+
+];
+
+
+/****************************************************************
+ * Bluetooth SIG service UUID
+ ****************************************************************/
+
+const SIG_SERVICES = [
+
+    0x1800,
+    0x1801,
+    0x1802,
+    0x1803,
+    0x1804,
+    0x1805,
+    0x1806,
+    0x1807,
+    0x1808,
+    0x1809,
+    0x180A,
+    0x180D,
+    0x180E,
+    0x180F,
+    0x1810,
+    0x1811,
+    0x1812,
+    0x1813,
+    0x1814,
+    0x1815,
+    0x1816,
+    0x1818,
+    0x1819,
+    0x181A,
+    0x181B,
+    0x181C,
+    0x181D,
+    0x181E,
+    0x181F,
+    0x1820,
+    0x1821,
+    0x1822,
+    0x1823,
+    0x1824,
+    0x1825,
+    0x1826,
+    0x1827,
+    0x1828,
+    0x1829,
+    0x183A,
+    0x183B,
+    0x183C,
+    0x183E,
+    0x1843,
+    0x1844,
+    0x1845,
+    0x1846,
+    0x1847,
+    0x1848,
+    0x1849,
+    0x184A,
+    0x184B,
+    0x184C,
+    0x184D,
+    0x184E,
+    0x184F,
+    0x1850,
+    0x1851,
+    0x1853,
+    0x1854,
+    0x1855,
+    0x1856
+
+];
+
+
+/****************************************************************
+ * UUID conversion
+ ****************************************************************/
+
+function uuid16ToFull(uuid16) {
+
+    let hex =
+        Number(uuid16)
+        .toString(16)
+        .padStart(4, "0");
+
+    return (
+        "0000" +
+        hex +
+        "-0000-1000-8000-00805f9b34fb"
+    );
+}
+
+
+function normalizeUUID(uuid) {
+
+    let s =
+        String(uuid)
+        .trim()
+        .toLowerCase();
+
+    if (!s) {
+        return null;
+    }
+
+    if (/^0x[0-9a-f]{4}$/i.test(s)) {
+
+        return uuid16ToFull(
+            parseInt(s.substring(2), 16)
+        );
+
+    }
+
+    if (/^[0-9a-f]{4}$/i.test(s)) {
+
+        return uuid16ToFull(
+            parseInt(s, 16)
+        );
+
+    }
+
+    if (
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        .test(s)
+    ) {
+
+        return s;
+
+    }
+
+    return null;
+}
+
+
+/****************************************************************
+ * LOG
+ ****************************************************************/
+
+function log(message, type = "") {
+
+    const element =
+        document.getElementById("log");
+
+    const time =
+        new Date()
+        .toTimeString()
+        .substring(0, 8);
+
+    const div =
+        document.createElement("div");
+
+    div.className =
+        type
+        ? "log-" + type
+        : "";
+
+    div.textContent =
+        `[${time}] ${message}`;
+
+    element.appendChild(div);
+
+    element.scrollTop =
+        element.scrollHeight;
+}
+
+
+/****************************************************************
+ * CUSTOM UUID
+ ****************************************************************/
+
+function addCustomUUID() {
+
+    const textarea =
+        document.getElementById(
+            "customUuidInput"
+        );
+
+    const list =
+        textarea.value
+        .split(/[\n,;]+/)
+        .map(v => v.trim())
+        .filter(Boolean);
+
+    let count = 0;
+
+    for (const item of list) {
+
+        const uuid =
+            normalizeUUID(item);
+
+        if (uuid) {
+
+            customUUIDs.add(uuid);
+
+            count++;
+
+        } else {
+
+            /*
+             * 尝试 Web Bluetooth 注册名称
+             */
+
+            try {
+
+                if (window.BluetoothUUID) {
+
+                    const uuid2 =
+                        BluetoothUUID
+                        .getService(item)
+                        .toLowerCase();
+
+                    customUUIDs.add(uuid2);
+
+                    count++;
+
+                }
+
+            } catch (_) {
+
+                log(
+                    `无法解析 UUID: ${item}`,
+                    "error"
+                );
+
+            }
+
+        }
+
+    }
+
+    textarea.value = "";
+
+    renderUUIDList();
+
+    log(
+        `增加 ${count} 个自定义 Service UUID`,
+        "ok"
+    );
+}
+
+
+function clearCustomUUID() {
+
+    customUUIDs.clear();
+
+    renderUUIDList();
+
+}
+
+
+function renderUUIDList() {
+
+    const element =
+        document.getElementById(
+            "uuidList"
+        );
+
+    element.innerHTML = "";
+
+    customUUIDs.forEach(uuid => {
+
+        const span =
+            document.createElement("span");
+
+        span.style.display =
+            "inline-block";
+
+        span.style.padding =
+            "5px 10px";
+
+        span.style.margin =
+            "3px";
+
+        span.style.background =
+            "#dbeafe";
+
+        span.style.borderRadius =
+            "5px";
+
+        span.textContent =
+            uuid;
+
+        element.appendChild(span);
+
+    });
+
+}
+
+
+/****************************************************************
+ * BUILD OPTIONAL SERVICES
+ ****************************************************************/
+
+function buildOptionalServices() {
+
+    const result =
+        new Set();
+
+    /*
+     * SIG services
+     */
+
+    for (const uuid of SIG_SERVICES) {
+
+        result.add(
+            uuid16ToFull(uuid)
+        );
+
+    }
+
+    /*
+     * 默认自定义 Service
+     */
+
+    for (
+        const uuid of DEFAULT_CUSTOM_SERVICES
+    ) {
+
+        const normalized =
+            normalizeUUID(uuid);
+
+        if (normalized) {
+
+            result.add(normalized);
+
+        }
+
+    }
+
+    /*
+     * 用户添加
+     */
+
+    for (
+        const uuid of customUUIDs
+    ) {
+
+        result.add(uuid);
+
+    }
+
+    return [
+        ...result
+    ];
+
+}
+
+
+/****************************************************************
+ * SCAN / CONNECT
+ ****************************************************************/
+
+async function scanDevice() {
+
+    if (!navigator.bluetooth) {
+
+        alert(
+            "当前浏览器不支持 Web Bluetooth"
+        );
+
+        return;
+
+    }
+
+    try {
+
+        const optionalServices =
+            buildOptionalServices();
+
+        log(
+            `授权 Service 数量：${optionalServices.length}`,
+            "info"
+        );
+
+        log(
+            "打开 BLE 设备选择窗口...",
+            "info"
+        );
+
+        bluetoothDevice =
+            await navigator.bluetooth.requestDevice({
+
+                acceptAllDevices: true,
+
+                optionalServices:
+                    optionalServices
+
+            });
+
+
+        log(
+            `选择设备：${bluetoothDevice.name || "Unknown"}`,
+            "ok"
+        );
+
+
+        document.getElementById(
+            "deviceName"
+        ).textContent =
+            bluetoothDevice.name || "Unknown";
+
+
+        document.getElementById(
+            "deviceId"
+        ).textContent =
+            bluetoothDevice.id;
+
+
+        bluetoothDevice.addEventListener(
+            "gattserverdisconnected",
+            onDisconnected
+        );
+
+
+        await connectDevice();
+
+    }
+
+    catch (error) {
+
+        log(
+            "扫描/连接失败：" +
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * CONNECT
+ ****************************************************************/
+
+async function connectDevice() {
+
+    if (!bluetoothDevice) {
+        return;
+    }
+
+    log(
+        "正在连接 GATT Server...",
+        "info"
+    );
+
+    gattServer =
+        await bluetoothDevice.gatt.connect();
+
+    log(
+        "GATT 连接成功",
+        "ok"
+    );
+
+
+    const status =
+        document.getElementById(
+            "connectionStatus"
+        );
+
+    status.textContent =
+        "已连接";
+
+    status.classList.remove(
+        "disconnected"
+    );
+
+
+    document.getElementById(
+        "scanButton"
+    ).disabled = true;
+
+
+    document.getElementById(
+        "disconnectButton"
+    ).disabled = false;
+
+
+    await enumerateGATT();
+
+}
+
+
+/****************************************************************
+ * ENUMERATE GATT
+ *
+ * 这里使用你上传文件中的核心方式：
+ *
+ * gattServer.getPrimaryServices()
+ *
+ ****************************************************************/
+
+async function enumerateGATT() {
+
+    services = [];
+
+    characteristics = [];
+
+    characteristicMap.clear();
+
+
+    const table =
+        document.getElementById(
+            "gattTable"
+        );
+
+    table.innerHTML = "";
+
+
+    log(
+        "开始枚举 Primary Services...",
+        "info"
+    );
+
+
+    /*
+     * 关键：
+     *
+     * getPrimaryServices()
+     *
+     */
+
+    services =
+        await gattServer
+        .getPrimaryServices();
+
+
+    log(
+        `发现 ${services.length} 个 Primary Service`,
+        "ok"
+    );
+
+
+    for (
+        let serviceIndex = 0;
+        serviceIndex < services.length;
+        serviceIndex++
+    ) {
+
+        const service =
+            services[serviceIndex];
+
+
+        log(
+            `Service #${serviceIndex + 1}: ${service.uuid}`,
+            "info"
+        );
+
+
+        let chars = [];
+
+        try {
+
+            chars =
+                await service
+                .getCharacteristics();
+
+        }
+
+        catch (error) {
+
+            log(
+                `Service ${service.uuid} 无法获取 Characteristic：${error.message}`,
+                "warn"
+            );
+
+            continue;
+
+        }
+
+
+        for (
+            let charIndex = 0;
+            charIndex < chars.length;
+            charIndex++
+        ) {
+
+            const characteristic =
+                chars[charIndex];
+
+
+            const key =
+                "char_" +
+                serviceIndex +
+                "_" +
+                charIndex;
+
+
+            characteristicMap.set(
+                key,
+                characteristic
+            );
+
+
+            characteristics.push(
+                characteristic
+            );
+
+
+            await addCharacteristicRow(
+                table,
+                service,
+                characteristic,
+                key
+            );
+
+        }
+
+    }
+
+
+    updateCharacteristicSelectors();
+
+
+    log(
+        `GATT 枚举完成：${services.length} Service，${characteristics.length} Characteristic`,
+        "ok"
+    );
+
+}
+
+
+/****************************************************************
+ * ADD CHARACTERISTIC TABLE ROW
+ ****************************************************************/
+
+async function addCharacteristicRow(
+    table,
+    service,
+    characteristic,
+    key
+) {
+
+    const tr =
+        document.createElement("tr");
+
+
+    /*
+     * Service UUID
+     */
+
+    const serviceTd =
+        document.createElement("td");
+
+    serviceTd.className =
+        "uuid";
+
+    serviceTd.textContent =
+        service.uuid;
+
+
+    /*
+     * Characteristic UUID
+     */
+
+    const charTd =
+        document.createElement("td");
+
+    charTd.className =
+        "uuid";
+
+    charTd.textContent =
+        characteristic.uuid;
+
+
+    /*
+     * Properties
+     */
+
+    const propertyTd =
+        document.createElement("td");
+
+
+    const p =
+        characteristic.properties;
+
+
+    const properties = [
+
+        ["read", "read"],
+
+        ["write", "write"],
+
+        [
+            "writeWithoutResponse",
+            "write no response"
+        ],
+
+        ["notify", "notify"],
+
+        ["indicate", "indicate"],
+
+        ["broadcast", "broadcast"],
+
+        [
+            "authenticatedSignedWrites",
+            "signed write"
+        ],
+
+        [
+            "reliableWrite",
+            "reliable write"
+        ],
+
+        [
+            "writableAuxiliaries",
+            "writable aux"
+        ]
+
+    ];
+
+
+    for (
+        const [key2, text]
+        of properties
+    ) {
+
+        if (p[key2]) {
+
+            const span =
+                document.createElement(
+                    "span"
+                );
+
+            span.className =
+                "property";
+
+
+            if (key2 === "read") {
+
+                span.classList.add(
+                    "read"
+                );
+
+            }
+
+            if (
+                key2 === "write" ||
+                key2 === "writeWithoutResponse"
+            ) {
+
+                span.classList.add(
+                    "write"
+                );
+
+            }
+
+            if (key2 === "notify") {
+
+                span.classList.add(
+                    "notify"
+                );
+
+            }
+
+            if (key2 === "indicate") {
+
+                span.classList.add(
+                    "indicate"
+                );
+
+            }
+
+            span.textContent =
+                text;
+
+            propertyTd.appendChild(
+                span
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Descriptor
+     */
+
+    const descriptorTd =
+        document.createElement("td");
+
+
+    try {
+
+        const descriptors =
+            await characteristic
+            .getDescriptors();
+
+
+        for (
+            const descriptor
+            of descriptors
+        ) {
+
+            const div =
+                document.createElement(
+                    "div"
+                );
+
+            div.className =
+                "descriptor";
+
+            div.textContent =
+                descriptor.uuid;
+
+            descriptorTd.appendChild(
+                div
+            );
+
+        }
+
+    }
+
+    catch (error) {
+
+        descriptorTd.textContent =
+            "无法读取";
+
+    }
+
+
+    /*
+     * 操作
+     */
+
+    const actionTd =
+        document.createElement("td");
+
+    const actions =
+        document.createElement("div");
+
+    actions.className =
+        "char-actions";
+
+
+    /*
+     * READ
+     */
+
+    if (p.read) {
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+        button.className =
+            "btn-gray";
+
+        button.textContent =
+            "Read";
+
+        button.onclick =
+            () => readCharacteristic(
+                characteristic
+            );
+
+        actions.appendChild(
+            button
+        );
+
+    }
+
+
+    /*
+     * WRITE
+     */
+
+    if (
+        p.write ||
+        p.writeWithoutResponse
+    ) {
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+        button.textContent =
+            "Write";
+
+        button.onclick =
+            () => {
+
+                document.getElementById(
+                    "manualWriteChar"
+                ).value = key;
+
+                document.getElementById(
+                    "wifiWriteChar"
+                ).value = key;
+
+                document.getElementById(
+                    "imageWriteChar"
+                ).value = key;
+
+                document.getElementById(
+                    "manualData"
+                ).focus();
+
+            };
+
+
+        actions.appendChild(
+            button
+        );
+
+    }
+
+
+    /*
+     * NOTIFY / INDICATE
+     */
+
+    if (
+        p.notify ||
+        p.indicate
+    ) {
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+        button.className =
+            "btn-green";
+
+        button.textContent =
+            p.indicate
+            ? "Indicate"
+            : "Notify";
+
+        button.onclick =
+            () => subscribeCharacteristic(
+                characteristic
+            );
+
+        actions.appendChild(
+            button
+        );
+
+    }
+
+
+    actionTd.appendChild(
+        actions
+    );
+
+
+    tr.appendChild(
+        serviceTd
+    );
+
+    tr.appendChild(
+        charTd
+    );
+
+    tr.appendChild(
+        propertyTd
+    );
+
+    tr.appendChild(
+        descriptorTd
+    );
+
+    tr.appendChild(
+        actionTd
+    );
+
+
+    table.appendChild(
+        tr
+    );
+
+}
+
+
+/****************************************************************
+ * UPDATE SELECT OPTIONS
+ ****************************************************************/
+
+function updateCharacteristicSelectors() {
+
+    const selectors = [
+
+        "manualWriteChar",
+
+        "manualNotifyChar",
+
+        "wifiWriteChar",
+
+        "wifiNotifyChar",
+
+        "imageWriteChar",
+
+        "imageNotifyChar"
+
+    ];
+
+
+    for (
+        const selectorId
+        of selectors
+    ) {
+
+        const select =
+            document.getElementById(
+                selectorId
+            );
+
+
+        select.innerHTML =
+            `<option value="">请选择</option>`;
+
+
+        characteristicMap.forEach(
+            (characteristic, key) => {
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+
+                option.value =
+                    key;
+
+
+                let propertyText =
+                    [];
+
+
+                const p =
+                    characteristic.properties;
+
+
+                if (p.read)
+                    propertyText.push(
+                        "R"
+                    );
+
+                if (p.write)
+                    propertyText.push(
+                        "W"
+                    );
+
+                if (
+                    p.writeWithoutResponse
+                )
+                    propertyText.push(
+                        "WNR"
+                    );
+
+                if (p.notify)
+                    propertyText.push(
+                        "N"
+                    );
+
+                if (p.indicate)
+                    propertyText.push(
+                        "I"
+                    );
+
+
+                option.textContent =
+                    characteristic.uuid +
+                    " [" +
+                    propertyText.join(
+                        ","
+                    ) +
+                    "]";
+
+
+                select.appendChild(
+                    option
+                );
+
+            }
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * READ
+ ****************************************************************/
+
+async function readCharacteristic(
+    characteristic
+) {
+
+    try {
+
+        const value =
+            await characteristic
+            .readValue();
+
+
+        const bytes =
+            new Uint8Array(
+                value.buffer,
+                value.byteOffset,
+                value.byteLength
+            );
+
+
+        log(
+            `READ ${characteristic.uuid}: ${bytesToHex(bytes)} | ${decodeText(bytes)}`,
+            "ok"
+        );
+
+    }
+
+    catch (error) {
+
+        log(
+            `READ 失败 ${characteristic.uuid}: ${error.message}`,
+            "error"
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * SUBSCRIBE
+ ****************************************************************/
+
+async function subscribeCharacteristic(
+    characteristic
+) {
+
+    try {
+
+        await characteristic
+        .startNotifications();
+
+
+        if (
+            !subscribedCharacteristics
+            .has(characteristic)
+        ) {
+
+            characteristic.addEventListener(
+                "characteristicvaluechanged",
+                onCharacteristicValueChanged
+            );
+
+            subscribedCharacteristics.add(
+                characteristic
+            );
+
+        }
+
+
+        log(
+            `已订阅 ${characteristic.uuid}`,
+            "ok"
+        );
+
+    }
+
+    catch (error) {
+
+        log(
+            `订阅失败 ${characteristic.uuid}: ${error.message}`,
+            "error"
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * CHARACTERISTIC RECEIVE
+ ****************************************************************/
+
+function onCharacteristicValueChanged(
+    event
+) {
+
+    const characteristic =
+        event.target;
+
+
+    const value =
+        event.target.value;
+
+
+    const bytes =
+        new Uint8Array(
+            value.buffer,
+            value.byteOffset,
+            value.byteLength
+        );
+
+
+    const text =
+        decodeText(bytes);
+
+
+    log(
+        `RX [${characteristic.uuid}] ${bytesToHex(bytes)} | ${text}`,
+        "ok"
+    );
+
+
+    /*
+     * 通用等待器
+     */
+
+    for (
+        const waiter
+        of notificationWaiters
+    ) {
+
+        try {
+
+            waiter(bytes, text);
+
+        }
+
+        catch (_) {}
+
+    }
+
+
+    /*
+     * Wi-Fi
+     */
+
+    document.getElementById(
+        "wifiResponse"
+    ).textContent =
+        text;
+
+
+    /*
+     * 图片 ACK
+     */
+
+    handleImageResponse(
+        bytes,
+        text
+    );
+
+}
+
+
+/****************************************************************
+ * WAIT FOR RESPONSE
+ ****************************************************************/
+
+function waitForResponse(
+    expectedText,
+    timeout = 10000
+) {
+
+    return new Promise(
+        (resolve, reject) => {
+
+            const timer =
+                setTimeout(
+                    () => {
+
+                        const index =
+                            notificationWaiters
+                            .indexOf(handler);
+
+                        if (index >= 0) {
+
+                            notificationWaiters
+                            .splice(
+                                index,
+                                1
+                            );
+
+                        }
+
+                        reject(
+                            new Error(
+                                `等待 "${expectedText}" 超时`
+                            )
+                        );
+
+                    },
+                    timeout
+                );
+
+
+            function handler(
+                bytes,
+                text
+            ) {
+
+                if (
+                    text
+                    .trim()
+                    .toLowerCase()
+                    ===
+                    expectedText
+                    .toLowerCase()
+                ) {
+
+                    clearTimeout(
+                        timer
+                    );
+
+
+                    const index =
+                        notificationWaiters
+                        .indexOf(
+                            handler
+                        );
+
+
+                    if (index >= 0) {
+
+                        notificationWaiters
+                        .splice(
+                            index,
+                            1
+                        );
+
+                    }
+
+
+                    resolve({
+                        bytes,
+                        text
+                    });
+
+                }
+
+            }
+
+
+            notificationWaiters.push(
+                handler
+            );
+
+        }
+    );
+
+}
+
+
+/****************************************************************
+ * SELECTED SUBSCRIBE
+ ****************************************************************/
+
+async function subscribeSelected() {
+
+    const key =
+        document.getElementById(
+            "manualNotifyChar"
+        ).value;
+
+
+    const characteristic =
+        characteristicMap.get(
+            key
+        );
+
+
+    if (!characteristic) {
+
+        alert(
+            "请选择通知/指示特征"
+        );
+
+        return;
+
+    }
+
+
+    await subscribeCharacteristic(
+        characteristic
+    );
+
+}
+
+
+/****************************************************************
+ * MANUAL WRITE
+ ****************************************************************/
+
+async function manualWrite() {
+
+    const key =
+        document.getElementById(
+            "manualWriteChar"
+        ).value;
+
+
+    const characteristic =
+        characteristicMap.get(
+            key
+        );
+
+
+    if (!characteristic) {
+
+        alert(
+            "请选择写入特征"
+        );
+
+        return;
+
+    }
+
+
+    const text =
+        document.getElementById(
+            "manualData"
+        ).value;
+
+
+    const mode =
+        document.getElementById(
+            "manualDataMode"
+        ).value;
+
+
+    const data =
+        mode === "hex"
+        ? hexToBytes(text)
+        : new TextEncoder().encode(text);
+
+
+    try {
+
+        await writeCharacteristic(
+            characteristic,
+            data
+        );
+
+
+        log(
+            `TX [${characteristic.uuid}] ${bytesToHex(data)}`,
+            "ok"
+        );
+
+    }
+
+    catch (error) {
+
+        log(
+            "写入失败：" +
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * MANUAL READ
+ ****************************************************************/
+
+async function manualRead() {
+
+    const key =
+        document.getElementById(
+            "manualWriteChar"
+        ).value;
+
+
+    const characteristic =
+        characteristicMap.get(
+            key
+        );
+
+
+    if (!characteristic) {
+
+        alert(
+            "请选择特征"
+        );
+
+        return;
+
+    }
+
+
+    await readCharacteristic(
+        characteristic
+    );
+
+}
+
+
+/****************************************************************
+ * WRITE CHARACTERISTIC
+ ****************************************************************/
+
+async function writeCharacteristic(
+    characteristic,
+    data
+) {
+
+    if (
+        characteristic.properties
+        .write
+    ) {
+
+        await characteristic
+        .writeValue(data);
+
+    }
+
+    else if (
+        characteristic.properties
+        .writeWithoutResponse
+    ) {
+
+        await characteristic
+        .writeValueWithoutResponse(
+            data
+        );
+
+    }
+
+    else {
+
+        throw new Error(
+            "该特征不支持写入"
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * WIFI CONFIG
+ ****************************************************************/
+
+async function startWifiConfig() {
+
+    const ssid =
+        document.getElementById(
+            "wifiSSID"
+        ).value;
+
+
+    const password =
+        document.getElementById(
+            "wifiPassword"
+        ).value;
+
+
+    const writeKey =
+        document.getElementById(
+            "wifiWriteChar"
+        ).value;
+
+
+    const notifyKey =
+        document.getElementById(
+            "wifiNotifyChar"
+        ).value;
+
+
+    const writeChar =
+        characteristicMap.get(
+            writeKey
+        );
+
+
+    const notifyChar =
+        characteristicMap.get(
+            notifyKey
+        );
+
+
+    if (!writeChar) {
+
+        alert(
+            "请选择配网写入特征"
+        );
+
+        return;
+
+    }
+
+
+    if (!notifyChar) {
+
+        alert(
+            "请选择配网回复特征"
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        /*
+         * 先订阅 indicate / notify
+         */
+
+        await subscribeCharacteristic(
+            notifyChar
+        );
+
+
+        /*
+         * 协议：
+         *
+         * SSID:[实际SSID] PAK:[密码]
+         */
+
+        const command =
+            `SSID:${ssid} PAK:${password}`;
+
+
+        const data =
+            new TextEncoder()
+            .encode(command);
+
+
+        document.getElementById(
+            "wifiActualSend"
+        ).textContent =
+            command;
+
+
+        log(
+            `Wi-Fi 配网 TX: ${command}`,
+            "info"
+        );
+
+
+        await writeCharacteristic(
+            writeChar,
+            data
+        );
+
+
+        /*
+         * 等待：
+         *
+         * net info rec
+         */
+
+        const response =
+            await waitForResponse(
+                "net info rec",
+                10000
+            );
+
+
+        document.getElementById(
+            "wifiResponse"
+        ).textContent =
+            response.text;
+
+
+        log(
+            "Wi-Fi 配网设备确认：net info rec",
+            "ok"
+        );
+
+
+    }
+
+    catch (error) {
+
+        log(
+            `Wi-Fi 配网失败：${error.message}`,
+            "error"
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * IMAGE LOAD
+ ****************************************************************/
+
+let sourceImage = null;
+
+
+function loadImage(event) {
+
+    const file =
+        event.target.files[0];
+
+
+    if (!file) {
+        return;
+    }
+
+
+    const img =
+        new Image();
+
+
+    img.onload =
+        function() {
+
+            sourceImage =
+                img;
+
+
+            document.getElementById(
+                "originalSize"
+            ).textContent =
+                `${img.width} × ${img.height}`;
+
+
+            updateImagePreview();
+
+
+            document.getElementById(
+                "sendImageButton"
+            ).disabled = false;
+
+        };
+
+
+    img.src =
+        URL.createObjectURL(file);
+
+}
+
+
+/****************************************************************
+ * IMAGE CROP
+ *
+ * 中心裁剪：
+ *
+ * 先根据目标比例计算 crop 区域，
+ * 然后缩放到目标尺寸。
+ ****************************************************************/
+
+function updateImagePreview() {
+
+    if (!sourceImage) {
+        return;
+    }
+
+
+    const width =
+        Number(
+            document.getElementById(
+                "imageWidth"
+            ).value
+        );
+
+
+    const height =
+        Number(
+            document.getElementById(
+                "imageHeight"
+            ).value
+        );
+
+
+    const canvas =
+        document.getElementById(
+            "previewCanvas"
+        );
+
+
+    canvas.width =
+        width;
+
+    canvas.height =
+        height;
+
+
+    const ctx =
+        canvas.getContext(
+            "2d"
+        );
+
+
+    const sourceWidth =
+        sourceImage.width;
+
+
+    const sourceHeight =
+        sourceImage.height;
+
+
+    const sourceRatio =
+        sourceWidth /
+        sourceHeight;
+
+
+    const targetRatio =
+        width /
+        height;
+
+
+    let sx;
+    let sy;
+    let sw;
+    let sh;
+
+
+    if (
+        sourceRatio >
+        targetRatio
+    ) {
+
+        /*
+         * 原图更宽
+         */
+
+        sh =
+            sourceHeight;
+
+        sw =
+            sourceHeight *
+            targetRatio;
+
+        sx =
+            (sourceWidth - sw) / 2;
+
+        sy =
+            0;
+
+    }
+
+    else {
+
+        /*
+         * 原图更高
+         */
+
+        sw =
+            sourceWidth;
+
+        sh =
+            sourceWidth /
+            targetRatio;
+
+        sx =
+            0;
+
+        sy =
+            (sourceHeight - sh) / 2;
+
+    }
+
+
+    ctx.drawImage(
+        sourceImage,
+
+        sx,
+        sy,
+        sw,
+        sh,
+
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    document.getElementById(
+        "targetSize"
+    ).textContent =
+        `${width} × ${height}`;
+
+
+    calculateImageInfo();
+
+}
+
+
+/****************************************************************
+ * IMAGE FORMAT
+ ****************************************************************/
+
+function canvasToRGB565(
+    canvas
+) {
+
+    const ctx =
+        canvas.getContext(
+            "2d"
+        );
+
+
+    const imageData =
+        ctx.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+    const rgba =
+        imageData.data;
+
+
+    const output =
+        new Uint8Array(
+            canvas.width *
+            canvas.height *
+            2
+        );
+
+
+    let index = 0;
+
+
+    for (
+        let i = 0;
+        i < rgba.length;
+        i += 4
+    ) {
+
+        const r =
+            rgba[i];
+
+        const g =
+            rgba[i + 1];
+
+        const b =
+            rgba[i + 2];
+
+
+        const rgb565 =
+            (
+                ((r >> 3) << 11) |
+                ((g >> 2) << 5) |
+                (b >> 3)
+            );
+
+
+        /*
+         * Little Endian
+         *
+         * ESP32:
+         *
+         * uint16_t pixel
+         */
+
+        output[index++] =
+            rgb565 & 0xff;
+
+
+        output[index++] =
+            (rgb565 >> 8) & 0xff;
+
+    }
+
+
+    return output;
+
+}
+
+
+/****************************************************************
+ * GRAY8
+ ****************************************************************/
+
+function canvasToGray8(
+    canvas
+) {
+
+    const ctx =
+        canvas.getContext(
+            "2d"
+        );
+
+
+    const imageData =
+        ctx.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+    const rgba =
+        imageData.data;
+
+
+    const output =
+        new Uint8Array(
+            canvas.width *
+            canvas.height
+        );
+
+
+    let index = 0;
+
+
+    for (
+        let i = 0;
+        i < rgba.length;
+        i += 4
+    ) {
+
+        const r =
+            rgba[i];
+
+        const g =
+            rgba[i + 1];
+
+        const b =
+            rgba[i + 2];
+
+
+        output[index++] =
+            Math.round(
+                0.299 * r +
+                0.587 * g +
+                0.114 * b
+            );
+
+    }
+
+
+    return output;
+
+}
+
+
+/****************************************************************
+ * RGB888
+ ****************************************************************/
+
+function canvasToRGB888(
+    canvas
+) {
+
+    const ctx =
+        canvas.getContext(
+            "2d"
+        );
+
+
+    const imageData =
+        ctx.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+    const rgba =
+        imageData.data;
+
+
+    const output =
+        new Uint8Array(
+            canvas.width *
+            canvas.height *
+            3
+        );
+
+
+    let index = 0;
+
+
+    for (
+        let i = 0;
+        i < rgba.length;
+        i += 4
+    ) {
+
+        output[index++] =
+            rgba[i];
+
+        output[index++] =
+            rgba[i + 1];
+
+        output[index++] =
+            rgba[i + 2];
+
+    }
+
+
+    return output;
+
+}
+
+
+/****************************************************************
+ * IMAGE DATA
+ ****************************************************************/
+
+function getImageRawData() {
+
+    const canvas =
+        document.getElementById(
+            "previewCanvas"
+        );
+
+
+    const format =
+        document.getElementById(
+            "imageFormat"
+        ).value;
+
+
+    if (format === "rgb565") {
+
+        return canvasToRGB565(
+            canvas
+        );
+
+    }
+
+
+    if (format === "gray8") {
+
+        return canvasToGray8(
+            canvas
+        );
+
+    }
+
+
+    if (format === "rgb888") {
+
+        return canvasToRGB888(
+            canvas
+        );
+
+    }
+
+
+    throw new Error(
+        "未知图片格式"
+    );
+
+}
+
+
+/****************************************************************
+ * IMAGE INFO
+ ****************************************************************/
+
+function calculateImageInfo() {
+
+    if (!sourceImage) {
+        return;
+    }
+
+
+    try {
+
+        const data =
+            getImageRawData();
+
+
+        const packetSize =
+            Number(
+                document.getElementById(
+                    "packetSize"
+                ).value
+            );
+
+
+        const totalPackets =
+            Math.ceil(
+                data.length /
+                packetSize
+            );
+
+
+        document.getElementById(
+            "rawSize"
+        ).textContent =
+            `${data.length} Bytes`;
+
+
+        document.getElementById(
+            "totalPackets"
+        ).textContent =
+            totalPackets;
+
+
+    }
+
+    catch (_) {}
+
+}
+
+
+/****************************************************************
+ * IMAGE PROTOCOL
+ *
+ * 这里采用：
+ *
+ * Width       : uint16 little endian
+ * Height      : uint16 little endian
+ * TotalPacket : uint32 little endian
+ * PacketSize  : uint16 little endian
+ *
+ * 总长度 = 10 Bytes
+ *
+ ****************************************************************/
+
+function createImageInfoPacket(
+    width,
+    height,
+    totalPackets,
+    packetSize
+) {
+
+    const buffer =
+        new ArrayBuffer(10);
+
+
+    const view =
+        new DataView(buffer);
+
+
+    view.setUint16(
+        0,
+        width,
+        true
+    );
+
+
+    view.setUint16(
+        2,
+        height,
+        true
+    );
+
+
+    view.setUint32(
+        4,
+        totalPackets,
+        true
+    );
+
+
+    view.setUint16(
+        8,
+        packetSize,
+        true
+    );
+
+
+    return new Uint8Array(
+        buffer
+    );
+
+}
+
+
+/****************************************************************
+ * IMAGE STATE
+ ****************************************************************/
+
+let imageState = {
+
+    writeChar: null,
+
+    notifyChar: null,
+
+    rawData: null,
+
+    width: 0,
+
+    height: 0,
+
+    packetSize: 0,
+
+    totalPackets: 0,
+
+    currentPacket: 0,
+
+    waitingAck: false,
+
+    ackResolver: null
+
+};
+
+
+/****************************************************************
+ * IMAGE RESPONSE
+ ****************************************************************/
+
+function handleImageResponse(
+    bytes,
+    text
+) {
+
+    if (!imageSending) {
+        return;
+    }
+
+
+    const lower =
+        text.trim()
+        .toLowerCase();
+
+
+    /*
+     * ASCII:
+     *
+     * ack+123
+     *
+     * ack123
+     */
+
+    if (
+        lower.startsWith(
+            "ack+"
+        )
+    ) {
+
+        const index =
+            parseInt(
+                lower.substring(4)
+            );
+
+
+        if (
+            !Number.isNaN(index)
+        ) {
+
+            resolveImageAck(
+                index
+            );
+
+        }
+
+        return;
+
+    }
+
+
+    if (
+        lower.startsWith(
+            "ack"
+        )
+    ) {
+
+        const index =
+            parseInt(
+                lower.substring(3)
+            );
+
+
+        if (
+            !Number.isNaN(index)
+        ) {
+
+            resolveImageAck(
+                index
+            );
+
+        }
+
+        return;
+
+    }
+
+
+    /*
+     * 有些 ESP32 程序可能发送：
+     *
+     * "ack" + uint16 index
+     *
+     * 例如：
+     *
+     * 61 63 6B 05 00
+     *
+     */
+
+    if (
+        bytes.length >= 5 &&
+        bytes[0] === 0x61 &&
+        bytes[1] === 0x63 &&
+        bytes[2] === 0x6b
+    ) {
+
+        const index =
+            bytes[3] |
+            (bytes[4] << 8);
+
+
+        resolveImageAck(
+            index
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * IMAGE ACK
+ ****************************************************************/
+
+function resolveImageAck(
+    index
+) {
+
+    if (
+        imageState.ackResolver
+    ) {
+
+        const resolver =
+            imageState.ackResolver;
+
+
+        imageState.ackResolver =
+            null;
+
+
+        resolver(
+            index
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * WAIT ACK
+ ****************************************************************/
+
+function waitImageAck(
+    timeout = 10000
+) {
+
+    return new Promise(
+        (resolve, reject) => {
+
+            const timer =
+                setTimeout(
+                    () => {
+
+                        imageState
+                        .ackResolver =
+                            null;
+
+                        reject(
+                            new Error(
+                                "等待 ACK 超时"
+                            )
+                        );
+
+                    },
+                    timeout
+                );
+
+
+            imageState.ackResolver =
+                (index) => {
+
+                    clearTimeout(
+                        timer
+                    );
+
+                    resolve(
+                        index
+                    );
+
+                };
+
+        }
+    );
+
+}
+
+
+/****************************************************************
+ * IMAGE SEND
+ ****************************************************************/
+
+async function startImageUpdate() {
+
+    if (imageSending) {
+
+        log(
+            "图片已经正在发送",
+            "warn"
+        );
+
+        return;
+
+    }
+
+
+    const writeKey =
+        document.getElementById(
+            "imageWriteChar"
+        ).value;
+
+
+    const notifyKey =
+        document.getElementById(
+            "imageNotifyChar"
+        ).value;
+
+
+    const writeChar =
+        characteristicMap.get(
+            writeKey
+        );
+
+
+    const notifyChar =
+        characteristicMap.get(
+            notifyKey
+        );
+
+
+    if (!writeChar) {
+
+        alert(
+            "请选择图片写入特征"
+        );
+
+        return;
+
+    }
+
+
+    if (!notifyChar) {
+
+        alert(
+            "请选择图片回复特征"
+        );
+
+        return;
+
+    }
+
+
+    if (!sourceImage) {
+
+        alert(
+            "请选择图片"
+        );
+
+        return;
+
+    }
+
+
+    const width =
+        Number(
+            document.getElementById(
+                "imageWidth"
+            ).value
+        );
+
+
+    const height =
+        Number(
+            document.getElementById(
+                "imageHeight"
+            ).value
+        );
+
+
+    const packetSize =
+        Number(
+            document.getElementById(
+                "packetSize"
+            ).value
+        );
+
+
+    if (
+        width <= 0 ||
+        height <= 0
+    ) {
+
+        alert(
+            "图片尺寸错误"
+        );
+
+        return;
+
+    }
+
+
+    if (
+        packetSize <= 0
+    ) {
+
+        alert(
+            "分包大小错误"
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        imageSending = true;
+
+
+        imageState.writeChar =
+            writeChar;
+
+
+        imageState.notifyChar =
+            notifyChar;
+
+
+        /*
+         * 订阅回复
+         */
+
+        await subscribeCharacteristic(
+            notifyChar
+        );
+
+
+        /*
+         * 重新生成目标图片
+         */
+
+        updateImagePreview();
+
+
+        /*
+         * 生成 Raw
+         */
+
+        const rawData =
+            getImageRawData();
+
+
+        const totalPackets =
+            Math.ceil(
+                rawData.length /
+                packetSize
+            );
+
+
+        imageState.rawData =
+            rawData;
+
+        imageState.width =
+            width;
+
+        imageState.height =
+            height;
+
+        imageState.packetSize =
+            packetSize;
+
+        imageState.totalPackets =
+            totalPackets;
+
+        imageState.currentPacket =
+            0;
+
+
+        /*
+         * ====================================================
+         * Step 1
+         *
+         * update Image
+         * ====================================================
+         */
+
+        log(
+            "IMAGE: TX -> update Image",
+            "info"
+        );
+
+
+        await writeCharacteristic(
+            writeChar,
+            textToBytes(
+                "update Image"
+            )
+        );
+
+
+        /*
+         * ====================================================
+         * Step 2
+         *
+         * 等待 Enter Image Update
+         * ====================================================
+         */
+
+        log(
+            "IMAGE: 等待 Enter Image Update...",
+            "info"
+        );
+
+
+        await waitForResponse(
+            "Enter Image Update",
+            10000
+        );
+
+
+        log(
+            "IMAGE: RX <- Enter Image Update",
+            "ok"
+        );
+
+
+        /*
+         * ====================================================
+         * Step 3
+         *
+         * Width + Height + TotalPackets + PacketSize
+         * ====================================================
+         */
+
+        const infoPacket =
+            createImageInfoPacket(
+                width,
+                height,
+                totalPackets,
+                packetSize
+            );
+
+
+        log(
+            "IMAGE: 发送图片参数",
+            "info"
+        );
+
+
+        log(
+            `Width=${width}, Height=${height}, TotalPackets=${totalPackets}, PacketSize=${packetSize}`,
+            "info"
+        );
+
+
+        await writeCharacteristic(
+            writeChar,
+            infoPacket
+        );
+
+
+        /*
+         * ====================================================
+         * Step 4
+         *
+         * 等待 update
+         * ====================================================
+         */
+
+        log(
+            "IMAGE: 等待 update...",
+            "info"
+        );
+
+
+        await waitForResponse(
+            "update",
+            10000
+        );
+
+
+        log(
+            "IMAGE: RX <- update",
+            "ok"
+        );
+
+
+        /*
+         * ====================================================
+         * Step 5
+         *
+         * 开始发送图片数据
+         *
+         * packet:
+         *
+         * index + raw data
+         *
+         * 本实现 index 使用 uint32 little endian
+         *
+         * [4 Bytes index]
+         * [raw data]
+         *
+         * ====================================================
+         */
+
+        for (
+            let index = 0;
+            index < totalPackets;
+            index++
+        ) {
+
+            if (!imageSending) {
+
+                throw new Error(
+                    "用户取消图片发送"
+                );
+
+            }
+
+
+            imageState.currentPacket =
+                index;
+
+
+            const start =
+                index *
+                packetSize;
+
+
+            const end =
+                Math.min(
+                    start +
+                    packetSize,
+                    rawData.length
+                );
+
+
+            const payload =
+                rawData.slice(
+                    start,
+                    end
+                );
+
+
+            /*
+             * index + raw data
+             */
+
+            const packet =
+                new Uint8Array(
+                    4 +
+                    payload.length
+                );
+
+
+            /*
+             * uint32 little endian
+             */
+
+            packet[0] =
+                index & 0xff;
+
+            packet[1] =
+                (index >> 8) & 0xff;
+
+            packet[2] =
+                (index >> 16) & 0xff;
+
+            packet[3] =
+                (index >> 24) & 0xff;
+
+
+            packet.set(
+                payload,
+                4
+            );
+
+
+            /*
+             * 发送
+             */
+
+            await writeCharacteristic(
+                writeChar,
+                packet
+            );
+
+
+            log(
+                `IMAGE TX packet ${index}/${totalPackets - 1}, ${packet.length} Bytes`,
+                "info"
+            );
+
+
+            /*
+             * 等待 ACK
+             */
+
+            const ackIndex =
+                await waitImageAck(
+                    10000
+                );
+
+
+            if (
+                ackIndex !== index
+            ) {
+
+                throw new Error(
+                    `ACK index 错误：期待 ${index}，收到 ${ackIndex}`
+                );
+
+            }
+
+
+            /*
+             * 更新进度
+             */
+
+            const percent =
+                (
+                    (index + 1) /
+                    totalPackets
+                ) *
+                100;
+
+
+            document.getElementById(
+                "progressBar"
+            ).style.width =
+                percent + "%";
+
+
+            document.getElementById(
+                "progressText"
+            ).textContent =
+                `${index + 1} / ${totalPackets} (${percent.toFixed(1)}%)`;
+
+        }
+
+
+        /*
+         * ====================================================
+         * Step 6
+         *
+         * Exit Image
+         * ====================================================
+         */
+
+        log(
+            "IMAGE: TX -> Exit Image",
+            "info"
+        );
+
+
+        await writeCharacteristic(
+            writeChar,
+            textToBytes(
+                "Exit Image"
+            )
+        );
+
+
+        /*
+         * ====================================================
+         * Step 7
+         *
+         * 等待 Exit
+         * ====================================================
+         */
+
+        log(
+            "IMAGE: 等待 Exit...",
+            "info"
+        );
+
+
+        await waitForResponse(
+            "Exit",
+            10000
+        );
+
+
+        log(
+            "IMAGE: RX <- Exit",
+            "ok"
+        );
+
+
+        document.getElementById(
+            "progressText"
+        ).textContent =
+            "图片发送完成";
+
+
+        document.getElementById(
+            "progressBar"
+        ).style.width =
+            "100%";
+
+
+    }
+
+    catch (error) {
+
+        log(
+            "IMAGE 发送失败：" +
+            error.message,
+            "error"
+        );
+
+
+        document.getElementById(
+            "progressText"
+        ).textContent =
+            "发送失败：" +
+            error.message;
+
+    }
+
+    finally {
+
+        imageSending = false;
+
+        imageState.ackResolver =
+            null;
+
+    }
+
+}
+
+
+/****************************************************************
+ * CANCEL IMAGE
+ ****************************************************************/
+
+function cancelImageTransfer() {
+
+    if (!imageSending) {
+
+        return;
+
+    }
+
+
+    imageSending = false;
+
+
+    imageState.ackResolver =
+        null;
+
+
+    log(
+        "用户取消图片发送",
+        "warn"
+    );
+
+
+    document.getElementById(
+        "progressText"
+    ).textContent =
+        "已停止";
+
+
+}
+
+
+/****************************************************************
+ * DISCONNECT
+ ****************************************************************/
+
+function disconnectDevice() {
+
+    try {
+
+        if (
+            bluetoothDevice &&
+            bluetoothDevice.gatt &&
+            bluetoothDevice.gatt.connected
+        ) {
+
+            bluetoothDevice.gatt.disconnect();
+
+        }
+
+    }
+
+    catch (error) {
+
+        log(
+            "断开失败：" +
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+/****************************************************************
+ * DISCONNECTED EVENT
+ ****************************************************************/
+
+function onDisconnected() {
+
+    log(
+        "BLE 设备已断开",
+        "warn"
+    );
+
+
+    document.getElementById(
+        "connectionStatus"
+    ).textContent =
+        "未连接";
+
+
+    document.getElementById(
+        "connectionStatus"
+    ).classList.add(
+        "disconnected"
+    );
+
+
+    document.getElementById(
+        "scanButton"
+    ).disabled = false;
+
+
+    document.getElementById(
+        "disconnectButton"
+    ).disabled = true;
+
+
+    gattServer = null;
+
+
+    characteristics = [];
+
+
+    characteristicMap.clear();
+
+
+    updateCharacteristicSelectors();
+
+
+}
+
+
+/****************************************************************
+ * BYTE HELPERS
+ ****************************************************************/
+
+function textToBytes(text) {
+
+    return new TextEncoder()
+        .encode(text);
+
+}
+
+
+function decodeText(bytes) {
+
+    try {
+
+        return new TextDecoder(
+            "utf-8"
+        ).decode(bytes);
+
+    }
+
+    catch (_) {
+
+        return "";
+
+    }
+
+}
+
+
+function bytesToHex(bytes) {
+
+    return Array.from(
+        bytes
+    )
+    .map(
+        b =>
+            b.toString(16)
+            .padStart(2, "0")
+            .toUpperCase()
+    )
+    .join(" ");
+
+}
+
+
+function hexToBytes(hex) {
+
+    const value =
+        hex
+        .replace(
+            /0x/gi,
+            ""
+        )
+        .replace(
+            /[^0-9a-f]/gi,
+            ""
+        );
+
+
+    if (
+        value.length % 2 !== 0
+    ) {
+
+        throw new Error(
+            "HEX 长度必须是偶数"
+        );
+
+    }
+
+
+    const result =
+        new Uint8Array(
+            value.length / 2
+        );
+
+
+    for (
+        let i = 0;
+        i < value.length;
+        i += 2
+    ) {
+
+        result[i / 2] =
+            parseInt(
+                value.substring(
+                    i,
+                    i + 2
+                ),
+                16
+            );
+
+    }
+
+
+    return result;
+
+}
+
+
+/****************************************************************
+ * IMAGE INPUT CHANGE
+ ****************************************************************/
+
+document.getElementById(
+    "imageWidth"
+).addEventListener(
+    "change",
+    () => {
+
+        updateImagePreview();
+
+    }
+);
+
+
+document.getElementById(
+    "imageHeight"
+).addEventListener(
+    "change",
+    () => {
+
+        updateImagePreview();
+
+    }
+);
+
+
+document.getElementById(
+    "imageFormat"
+).addEventListener(
+    "change",
+    () => {
+
+        calculateImageInfo();
+
+    }
+);
+
+
+document.getElementById(
+    "packetSize"
+).addEventListener(
+    "change",
+    () => {
+
+        calculateImageInfo();
+
+    }
+);
+
+
+/****************************************************************
+ * PAGE START
+ ****************************************************************/
+
+window.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        if (!navigator.bluetooth) {
+
+            log(
+                "当前浏览器不支持 Web Bluetooth",
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        /*
+         * 加载默认 UUID
+         */
+
+        for (
+            const uuid
+            of DEFAULT_CUSTOM_SERVICES
+        ) {
+
+            const normalized =
+                normalizeUUID(uuid);
+
+            if (normalized) {
+
+                customUUIDs.add(
+                    normalized
+                );
+
+            }
+
+        }
+
+
+        renderUUIDList();
+
+
+        log(
+            "Web Bluetooth API 可用",
+            "ok"
+        );
+
+
+        log(
+            "点击「扫描设备」开始 BLE 设备选择",
+            "info"
+        );
+
+    }
+);
+
+</script>
+
+</body>
+</html>

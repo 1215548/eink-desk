@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>墨韵控制台</title>
+    <style>
+        :root {
+            --ink: #26332d;
+            --ink-soft: #526057;
+            --paper: #f4f1e8;
+            --paper-deep: #e8e3d5;
+            --rice: rgba(255, 254, 248, .88);
+            --line: #c9c4b5;
+            --seal: #a74336;
+            --seal-dark: #87352d;
+            --mist: rgba(82, 96, 87, .10);
+            --shadow: 0 10px 28px rgba(45, 50, 43, .10);
+        }
+
+        * { box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            margin: 0;
+            padding: 28px 18px 50px;
+            color: var(--ink);
+            font-family: "Microsoft YaHei", "Noto Sans SC", "PingFang SC", Arial, sans-serif;
+            background:
+                radial-gradient(circle at 12% 8%, rgba(255,255,255,.75), transparent 24%),
+                radial-gradient(circle at 88% 20%, rgba(112,124,111,.10), transparent 28%),
+                linear-gradient(135deg, rgba(78,91,80,.035) 25%, transparent 25%) 0 0/7px 7px,
+                var(--paper);
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: .20;
+            background-image:
+                repeating-linear-gradient(0deg, rgba(60,55,45,.025) 0, rgba(60,55,45,.025) 1px, transparent 1px, transparent 5px),
+                repeating-linear-gradient(90deg, rgba(60,55,45,.018) 0, rgba(60,55,45,.018) 1px, transparent 1px, transparent 7px);
+            mix-blend-mode: multiply;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1120px;
+            margin: auto;
+        }
+
+        h1 {
+            position: relative;
+            margin: 0 0 26px;
+            padding: 10px 8px 20px;
+            text-align: center;
+            font-family: "STKaiti", "KaiTi", "FangSong", "Microsoft YaHei", serif;
+            font-size: clamp(28px, 4vw, 42px);
+            font-weight: 700;
+            letter-spacing: .12em;
+            color: #27332d;
+        }
+
+        h1::after {
+            content: "BLE · 墨韵控制台";
+            display: block;
+            margin-top: 7px;
+            font-family: "Microsoft YaHei", sans-serif;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: .28em;
+            color: #8a9188;
+        }
+
+        h1::before {
+            content: " ";
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: min(360px, 68%);
+            height: 2px;
+            transform: translateX(-50%) rotate(-.6deg);
+            background: linear-gradient(90deg, transparent, #68746b 18%, #68746b 82%, transparent);
+            opacity: .7;
+        }
+
+        .card {
+            position: relative;
+            overflow: hidden;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.48), transparent 35%),
+                var(--rice);
+            padding: 22px 24px 24px;
+            margin-bottom: 18px;
+            border: 1px solid rgba(116,112,99,.28);
+            border-radius: 3px 12px 5px 10px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(4px);
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, #7b857d, #b4afa1 55%, #9c463c);
+            opacity: .75;
+        }
+
+        .card::after {
+            content: "";
+            position: absolute;
+            right: -35px;
+            top: -48px;
+            width: 150px;
+            height: 120px;
+            border: 1px solid rgba(82,96,87,.08);
+            border-radius: 50%;
+            transform: rotate(-18deg);
+            pointer-events: none;
+        }
+
+        h2 {
+            margin: 0 0 18px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(112,108,96,.25);
+            font-family: "STKaiti", "KaiTi", "FangSong", "Microsoft YaHei", serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #344039;
+            letter-spacing: .05em;
+        }
+
+        h2::first-letter { color: var(--seal); }
+
+        .row {
+            display: flex;
+            gap: 11px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 13px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #3e4942;
+            user-select: none;
+        }
+
+        input, select, button {
+            font-family: inherit;
+            font-size: 14px;
+            min-height: 38px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #c4c0b4;
+            background: rgba(255,255,250,.82);
+            color: #303a34;
+            outline: none;
+            transition: border-color .18s, box-shadow .18s, transform .12s, background .18s;
+        }
+
+        input:focus, select:focus {
+            border-color: #758178;
+            box-shadow: 0 0 0 3px rgba(91,105,95,.10);
+            background: #fffef9;
+        }
+
+        input[type="number"] { width: 100px; }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            min-height: 18px;
+            padding: 0;
+            cursor: pointer;
+            accent-color: var(--seal);
+        }
+
+        button {
+            cursor: pointer;
+            background: linear-gradient(180deg, #faf9f3, #e9e6dc);
+            border-color: #bcb8aa;
+            box-shadow: 0 2px 5px rgba(50,50,40,.08);
+        }
+
+        button:hover:not(:disabled) {
+            background: #fffdf6;
+            border-color: #858d84;
+            transform: translateY(-1px);
+        }
+
+        button:active:not(:disabled) { transform: translateY(0); }
+
+        button.primary {
+            background: linear-gradient(135deg, #3f5147, #27372f);
+            color: #fff;
+            border-color: #34453c;
+            box-shadow: 0 4px 10px rgba(39,55,47,.18);
+        }
+
+        button.primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #506258, #31443a);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #a74336, #8d372f);
+            color: white;
+            border-color: #8d372f;
+        }
+
+        button.danger:hover:not(:disabled) { background: #7f302a; }
+
+        button:disabled {
+            opacity: .42;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none;
+        }
+
+        .status {
+            padding: 13px 15px;
+            border: 1px solid rgba(112,108,96,.22);
+            border-radius: 4px;
+            background: rgba(235,233,224,.62);
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.9;
+            white-space: pre-wrap;
+        }
+
+        .preview-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .preview-box {
+            border: 1px solid #c8c3b6;
+            padding: 10px;
+            background: rgba(238,236,226,.72);
+            text-align: center;
+            flex: 1 1 200px;
+            border-radius: 3px;
+        }
+
+        .preview-box>div {
+            margin-bottom: 7px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #5a645d;
+        }
+
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            border: 1px solid #aaa69a;
+            max-width: 100%;
+            height: auto;
+            background: #fff;
+        }
+
+        .progress {
+            width: 100%;
+            height: 22px;
+            background: #dedbd1;
+            border: 1px solid #c4c0b5;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #3e5147, #78857b);
+            transition: width .1s;
+        }
+
+        #log {
+            height: 280px;
+            overflow-y: auto;
+            background: #222924;
+            color: #d7dfd7;
+            padding: 13px 15px;
+            border: 1px solid #151b17;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.65;
+            white-space: pre-wrap;
+            border-radius: 3px;
+            box-shadow: inset 0 0 22px rgba(0,0,0,.18);
+        }
+
+        .value {
+            font-family: Consolas, monospace;
+            color: #8d3e34;
+            font-weight: 700;
+        }
+
+        .inline-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-weight: normal;
+            cursor: pointer;
+        }
+
+        .inline-label input[type="checkbox"] { margin: 0; }
+
+        .hint {
+            font-size: 13px;
+            color: #858b84;
+            margin-left: 4px;
+        }
+
+        .highlight {
+            color: var(--seal);
+            font-weight: 700;
+        }
+
+        .crop-tip {
+            background: rgba(247,239,217,.78);
+            border: 1px solid #d8c99f;
+            padding: 9px 14px;
+            border-radius: 3px;
+            color: #7d5c26;
+            font-size: 14px;
+            margin-bottom: 10px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .crop-tip.active { display: flex; }
+
+        .crop-tip .badge {
+            background: var(--seal);
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: .05em;
+        }
+
+        .screenshot-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            background: #e7e4da;
+            padding: 7px;
+            border: 1px solid #c4c0b5;
+        }
+
+        .screenshot-wrapper canvas { cursor: grab; }
+
+        .screenshot-wrapper canvas.dragging { cursor: grabbing; }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-group button { flex: 0 1 auto; }
+
+        .crop-size-input {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .crop-size-input label { font-weight: normal; }
+
+        .crop-size-input input { width: 70px; }
+
+        #cropCoords {
+            color: #858b84;
+            font-size: 13px;
+            margin-left: 8px;
+        }
+
+        .debug-info {
+            font-size: 12px;
+            color: #8a8f88;
+            margin-top: 5px;
+        }
+
+        .crop-layout {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .crop-layout .left {
+            flex: 2 1 500px;
+            min-width: 300px;
+        }
+
+        .crop-layout .right {
+            flex: 1 1 200px;
+            min-width: 160px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .crop-layout .right .preview-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #59635c;
+        }
+
+        .crop-layout .right .preview-box {
+            border: 1px solid #c8c3b6;
+            padding: 7px;
+            background: rgba(249,248,242,.82);
+            text-align: center;
+            width: 100%;
+        }
+
+        .crop-layout .right .preview-box canvas {
+            border: none;
+            max-width: 100%;
+            height: auto;
+            background: #fff;
+        }
+
+        .crop-layout .right .preview-info {
+            font-size: 13px;
+            color: #858b84;
+            text-align: center;
+        }
+
+        .crop-result {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .crop-result .preview-box { flex: 1 1 200px; }
+
+        .crop-section-hidden { display: none !important; }
+
+        .crop-done-tip {
+            background: rgba(231,239,226,.78);
+            border: 1px solid #b8c8ac;
+            padding: 9px 14px;
+            border-radius: 3px;
+            color: #46613d;
+            font-size: 14px;
+            margin-top: 8px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .crop-done-tip.active { display: flex; }
+
+        .crop-done-tip .badge-done {
+            background: #536c4b;
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .rotate-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-left: 8px;
+            flex-wrap: wrap;
+        }
+
+        .rotate-group button {
+            padding: 5px 10px;
+            font-size: 14px;
+            background: #edf1ed;
+            border-color: #b4beb6;
+        }
+
+        .rotate-group button:hover:not(:disabled) {
+            background: #fff;
+            border-color: #7d8b81;
+        }
+
+        .wifi-status {
+            margin-top: 8px;
+            padding: 9px 12px;
+            border-radius: 3px;
+            background: rgba(237,235,226,.65);
+            border: 1px solid rgba(116,112,99,.20);
+            font-size: 14px;
+            min-height: 38px;
+        }
+
+        .wifi-status.success {
+            background: rgba(231,239,226,.78);
+            color: #46613d;
+            border: 1px solid #b8c8ac;
+        }
+
+        .wifi-status.error {
+            background: rgba(247,230,226,.75);
+            color: #963d32;
+            border: 1px solid #dbb1a9;
+        }
+
+        .wifi-status.sending {
+            background: rgba(229,237,233,.78);
+            color: #425c4e;
+            border: 1px solid #b8c5bd;
+        }
+
+        .led-btn-on {
+            background: linear-gradient(135deg, #607b58, #4c6845);
+            color: #fff;
+            border-color: #4c6845;
+        }
+
+        .led-btn-on:hover:not(:disabled) { background: #405a3b; }
+
+        .led-btn-off {
+            background: linear-gradient(135deg, #a85a4f, #8e4037);
+            color: #fff;
+            border-color: #8e4037;
+        }
+
+        .led-btn-off:hover:not(:disabled) { background: #7c342d; }
+
+        @media (max-width: 700px) {
+            body { padding: 18px 10px 35px; }
+            .card { padding: 18px 16px 20px; }
+            h1 { font-size: 28px; }
+            h2 { font-size: 20px; }
+            .crop-layout { flex-direction: column; }
+            .crop-layout .right {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .crop-layout .right .preview-box { width: auto; }
+            .row > input[type="text"],
+            .row > input[type="password"] { min-width: 150px !important; }
+        }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>墨韵控制台 @By:E</h1>
+
+    <!-- BLE -->
+    <div class="card">
+        <h2>1. BLE连接</h2>
+        <div class="row">
+            <button class="primary" id="scanBtn">扫描 BLE</button>
+            <button id="disconnectBtn" disabled>断开</button>
+        </div>
+        <div class="status">
+            设备：<span id="deviceName">未连接</span>
+            连接状态：<span id="bleStatus">未连接</span>
+            Service：<span id="serviceInfo">---</span>
+            RX：<span id="rxInfo">---</span>
+            Indicate：<span id="indicateInfo">---</span>
+            CTR Service：<span id="ctrServiceInfo">---</span>
+        </div>
+    </div>
+
+    <!-- 图片 -->
+    <div class="card">
+        <h2>2. 图片 <span id="sizeBadge" style="font-size:14px;font-weight:normal;color:#888;"></span></h2>
+        <div class="row">
+            <label>图片：</label>
+            <input type="file" id="imageFile" accept="image/*">
+            <span id="fileSizeInfo" style="color:#888;font-size:13px;"></span>
+        </div>
+        <div class="crop-tip" id="cropTip">
+            <span class="badge">✂ 截图</span>
+            <span>图片尺寸超过 128×250（或不足最小尺寸），请在下方画布上 <strong>拖动红色矩形框</strong> 选择要发送的区域。</span>
+            <button id="cropTipCloseBtn" style="background:transparent;border:none;color:#d46b08;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+        </div>
+        <div class="crop-done-tip" id="cropDoneTip">
+            <span class="badge-done">✓ 已裁剪</span>
+            <span id="cropDoneText">裁剪完成。如需调整，可继续拖动裁剪框，松开后自动裁剪。</span>
+        </div>
+        <div class="row">
+            <label>宽度：</label>
+            <input type="number" id="imageWidth" value="250" min="1" max="2000">
+            <label>高度：</label>
+            <input type="number" id="imageHeight" value="122" min="1" max="2000">
+            <button id="useOriginalSizeBtn">使用原图尺寸</button>
+        </div>
+        <div class="row crop-size-input" id="cropSizeRow">
+            <label>截图框宽：</label>
+            <input type="number" id="cropBoxWidth" value="128" min="1" max="2000">
+            <label>高：</label>
+            <input type="number" id="cropBoxHeight" value="250" min="1" max="2000">
+            <span style="color:#888;font-size:13px;">（拖动矩形框，松开即自动裁剪）</span>
+            <div class="rotate-group">
+                <button id="rotateLeftBtn" title="左旋90°">↺ 左旋</button>
+                <button id="rotateRightBtn" title="右旋90°">↻ 右旋</button>
+                <button id="rotate180Btn" title="旋转180°">⟳ 180°</button>
+            </div>
+        </div>
+        <div class="row">
+            <label>位深：</label>
+            <select id="bitDepth">
+                <option value="1">1 bit 黑白</option>
+                <option value="2">2 bit 灰度</option>
+                <option value="4">4 bit 灰度</option>
+                <option value="8">8 bit 灰度</option>
+            </select>
+            <label>取模方向：</label>
+            <select id="scanMode">
+                <option value="row">横向逐行</option>
+                <option value="column">纵向逐列</option>
+            </select>
+            <span class="hint">（暂仅支持横向逐行）</span>
+        </div>
+        <div id="cropSection">
+            <div class="crop-layout">
+                <div class="left">
+                    <div class="screenshot-wrapper">
+                        <canvas id="screenshotCanvas" width="800" height="600" style="border:1px solid #999;background:#f0f0f0;width:100%;height:auto;"></canvas>
+                    </div>
+                    <div class="row btn-group" style="margin-top:8px;">
+                        <button id="cropBtn" disabled style="display:none;">✂ 裁剪截图</button>
+                        <button id="resetCropBtn" style="background:#f0f0f0;">重置截图</button>
+                        <span id="cropCoords" style="color:#888;font-size:13px;margin-left:8px;"></span>
+                    </div>
+                    <div id="debugInfo" class="debug-info"></div>
+                </div>
+                <div class="right">
+                    <div class="preview-label">📐 选区预览（最终输出）</div>
+                    <div class="preview-box">
+                        <canvas id="cropPreviewCanvas" width="128" height="250"></canvas>
+                    </div>
+                    <div class="preview-info" id="previewInfo">尺寸：128×250</div>
+                </div>
+            </div>
+        </div>
+        <div class="crop-result">
+            <div class="preview-box">
+                <div>✅ 裁剪结果 (原图)</div>
+                <canvas id="originalCanvas"></canvas>
+            </div>
+            <div class="preview-box">
+                <div>🎯 取模后预览</div>
+                <canvas id="previewCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据参数 -->
+    <div class="card">
+        <h2>3. 发送图片</h2>
+        <div class="row">
+            <button class="primary" id="sendBtn" disabled>开始发送</button>
+            <button id="retryBtn" class="danger" disabled>重试 (EXIT + 重发(仍然失效重启硬件))</button>
+        </div>
+        <div class="row">
+            <label>当前更新图片序号 (order)：</label>
+            <input type="number" id="orderInput" value="0" min="0" max="999" style="width:80px;">
+            <span style="color:#888;font-size:13px;">（默认0，用于确认当前更新的是ESP32中的第几张图）</span>
+        </div>
+        <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+        <div style="margin-top:10px" id="progressText">0%</div>
+        <div style="margin-top:6px; font-size:13px; color:#888;" id="resendInfo"></div>
+    </div>
+
+    <!-- 日志 -->
+    <div class="card">
+        <h2>4. 数据参数</h2>
+        <div class="row"><span>图片尺寸：<span class="value" id="sizeInfo">---</span></span></div>
+        <div class="row"><span>取模数据：<span class="value" id="dataSizeInfo">---</span></span></div>
+        <div class="row"><span>分包大小：<span class="value" id="packetSizeInfo">---</span></span></div>
+        <div class="row"><span>总包数：<span class="value" id="packetCountInfo">---</span></span></div>
+        <div class="row" style="margin-top:8px; border-top:1px solid #eee; padding-top:12px;">
+            <label class="inline-label">
+                <input type="checkbox" id="invertCheckbox" checked>
+                <span>预览反相 (Preview Invert) <span class="hint highlight">默认开启（适配ESP32显示）</span></span>
+            </label>
+        </div>
+        <div class="row" style="margin-top:4px;">
+            <label class="inline-label">
+                <input type="checkbox" id="sendInvertCheckbox" checked>
+                <span>发送反相 (Send Invert) <span class="hint highlight">默认开启（适配ESP32显示）</span></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- WiFi 配置卡片 -->
+    <div class="card">
+        <h2>5. WiFi 配置</h2>
+        <div class="row">
+            <label>SSID：</label>
+            <input type="text" id="wifiSsid" placeholder="请输入 WiFi 名称" style="flex:1; min-width:180px;">
+            <label>密码：</label>
+            <input type="password" id="wifiPassword" placeholder="请输入 WiFi 密码" style="flex:1; min-width:180px;">
+            <button class="primary" id="wifiSendBtn" disabled>发送配置</button>
+        </div>
+        <div class="wifi-status" id="wifiStatus">等待发送...</div>
+    </div>
+
+    <!-- LED 控制卡片（新增） -->
+    <div class="card">
+        <h2>6. LED 控制</h2>
+        <div class="row">
+            <button class="led-btn-on" id="ledOnBtn" disabled>💡 打开 LED</button>
+            <button class="led-btn-off" id="ledOffBtn" disabled>⭕ 关闭 LED</button>
+            <span style="color:#888;font-size:13px;">
+                （通过 CTR 服务 0xEEF0 / RX 0xEEF1 发送 SET:LED_ON / SET:LED_OFF，响应走 0xEEF3 Indicate）
+            </span>
+        </div>
+        <div class="wifi-status" id="ledStatus">等待操作...</div>
+    </div>
+
+    <!-- 发送图片 -->
+    <div class="card">
+        <h2>7. 日志</h2>
+        <div id="log"></div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+//  BLE 常量
+// ============================================================
+const BLE_DEVICE_NAME = "EspBle";
+const SERVICE_UUID = 0xEEE0;
+const RX_UUID = 0xEEE1;
+const TX_UUID = 0xEEE2;
+const INDICATE_UUID = 0xEEE3;
+const NOTIFY_UUID = 0xEEE4;
+
+// CTR 服务（LED 控制）
+const CTR_SERVICE_UUID   = 0xEEF0;
+const CTR_RX_UUID        = 0xEEF1;
+const CTR_TX_UUID        = 0xEEF2;
+const CTR_INDICATE_UUID  = 0xEEF3;
+const CTR_NOTIFY_UUID    = 0xEEF4;
+
+let bleDevice = null;
+let bleServer = null;
+let bleService = null;
+let rxCharacteristic = null;
+let txCharacteristic = null;
+let indicateCharacteristic = null;
+let notifyCharacteristic = null;
+
+// CTR 服务相关
+let ctrService = null;
+let ctrRxCharacteristic = null;
+let ctrTxCharacteristic = null;
+let ctrIndicateCharacteristic = null;
+let ctrNotifyCharacteristic = null;
+
+const BLE_DATA_SIZE = 120;
+
+let originalImage = null;
+let sourceImage = null;
+let convertedData = null;
+let packetSize = BLE_DATA_SIZE;
+let packetTotal = 0;
+let ackWaiter = null;
+
+let exitAckResolve = null;
+let exitAckReject = null;
+let exitAckTimer = null;
+
+// WiFi 配置专用 Promise
+let wifiConfigResolve = null;
+let wifiConfigReject = null;
+
+// LED 控制专用 Promise
+let ledAckResolve = null;
+let ledAckTimer = null;
+
+// 新增：BLE 主动断开专用 Promise
+let disconnectAckResolve = null;
+let disconnectAckTimer = null;
+
+// ============================================================
+//  截图状态
+// ============================================================
+const cropState = {
+    active: false,
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    displayWidth: 0,
+    displayHeight: 0,
+    fullImage: null,
+    fullWidth: 0,
+    fullHeight: 0,
+    done: false,
+    boxX: 0,
+    boxY: 0,
+    boxW: 128,
+    boxH: 250,
+};
+
+let screenshotData = null;
+let isDragging = false;
+let dragOffsetX = 0, dragOffsetY = 0;
+
+// ============================================================
+//  DOM 引用
+// ============================================================
+const $ = id => document.getElementById(id);
+const dom = {
+    log: $('log'),
+    scanBtn: $('scanBtn'),
+    disconnectBtn: $('disconnectBtn'),
+    deviceName: $('deviceName'),
+    bleStatus: $('bleStatus'),
+    serviceInfo: $('serviceInfo'),
+    rxInfo: $('rxInfo'),
+    indicateInfo: $('indicateInfo'),
+    ctrServiceInfo: $('ctrServiceInfo'),
+    imageFile: $('imageFile'),
+    imageWidth: $('imageWidth'),
+    imageHeight: $('imageHeight'),
+    bitDepth: $('bitDepth'),
+    scanMode: $('scanMode'),
+    invertCheckbox: $('invertCheckbox'),
+    sendInvertCheckbox: $('sendInvertCheckbox'),
+    originalCanvas: $('originalCanvas'),
+    previewCanvas: $('previewCanvas'),
+    sizeInfo: $('sizeInfo'),
+    dataSizeInfo: $('dataSizeInfo'),
+    packetSizeInfo: $('packetSizeInfo'),
+    packetCountInfo: $('packetCountInfo'),
+    sendBtn: $('sendBtn'),
+    progressBar: $('progressBar'),
+    progressText: $('progressText'),
+    useOriginalSizeBtn: $('useOriginalSizeBtn'),
+    screenshotCanvas: $('screenshotCanvas'),
+    cropBtn: $('cropBtn'),
+    resetCropBtn: $('resetCropBtn'),
+    cropTip: $('cropTip'),
+    cropTipCloseBtn: $('cropTipCloseBtn'),
+    cropCoords: $('cropCoords'),
+    sizeBadge: $('sizeBadge'),
+    fileSizeInfo: $('fileSizeInfo'),
+    cropBoxWidth: $('cropBoxWidth'),
+    cropBoxHeight: $('cropBoxHeight'),
+    debugInfo: $('debugInfo'),
+    cropPreviewCanvas: $('cropPreviewCanvas'),
+    previewInfo: $('previewInfo'),
+    cropSection: $('cropSection'),
+    cropSizeRow: $('cropSizeRow'),
+    cropDoneTip: $('cropDoneTip'),
+    cropDoneText: $('cropDoneText'),
+    retryBtn: $('retryBtn'),
+    resendInfo: $('resendInfo'),
+    orderInput: $('orderInput'),
+    rotateLeftBtn: $('rotateLeftBtn'),
+    rotateRightBtn: $('rotateRightBtn'),
+    rotate180Btn: $('rotate180Btn'),
+    wifiSsid: $('wifiSsid'),
+    wifiPassword: $('wifiPassword'),
+    wifiSendBtn: $('wifiSendBtn'),
+    wifiStatus: $('wifiStatus'),
+    // LED 控制
+    ledOnBtn: $('ledOnBtn'),
+    ledOffBtn: $('ledOffBtn'),
+    ledStatus: $('ledStatus'),
+};
+
+// ============================================================
+//  日志
+// ============================================================
+function log(message) {
+    const time = new Date().toLocaleTimeString();
+    dom.log.textContent += `[${time}] ${message}\n`;
+    dom.log.scrollTop = dom.log.scrollHeight;
+}
+
+// ============================================================
+//  BLE 相关
+// ============================================================
+dom.scanBtn.addEventListener('click', scanBLE);
+async function scanBLE() {
+    try {
+        log("开始扫描 BLE...");
+        bleDevice = await navigator.bluetooth.requestDevice({
+            filters: [{ name: BLE_DEVICE_NAME }],
+            optionalServices: [SERVICE_UUID, CTR_SERVICE_UUID]
+        });
+        log("找到设备：" + (bleDevice.name || "Unknown"));
+        bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        await connectBLE();
+    } catch (error) {
+        console.error(error);
+        log("扫描/连接失败：" + error.message);
+    }
+}
+
+async function connectBLE() {
+    try {
+        log("正在连接...");
+        bleServer = await bleDevice.gatt.connect();
+        log("GATT连接成功");
+        bleService = await bleServer.getPrimaryService(SERVICE_UUID);
+        log("找到 Service: 0xEEE0");
+        rxCharacteristic = await bleService.getCharacteristic(RX_UUID);
+        try { txCharacteristic = await bleService.getCharacteristic(TX_UUID); } catch (_) {}
+        try {
+            indicateCharacteristic = await bleService.getCharacteristic(INDICATE_UUID);
+            await indicateCharacteristic.startNotifications();
+            indicateCharacteristic.addEventListener('characteristicvaluechanged', handleIndicate);
+            log("EEE3 Indicate 已开启");
+        } catch (error) {
+            log("EEE3 Indicate 获取失败：" + error.message);
+        }
+        try { notifyCharacteristic = await bleService.getCharacteristic(NOTIFY_UUID); } catch (_) {}
+
+        // ---------- 获取 CTR 服务（LED 控制） ----------
+        try {
+            ctrService = await bleServer.getPrimaryService(CTR_SERVICE_UUID);
+            log("找到 CTR Service: 0xEEF0");
+
+            try {
+                ctrRxCharacteristic = await ctrService.getCharacteristic(CTR_RX_UUID);
+                log("CTR RX 0xEEF1 已获取");
+            } catch (error) {
+                log("EEF1 CTR RX 获取失败：" + error.message);
+            }
+
+            try { ctrTxCharacteristic = await ctrService.getCharacteristic(CTR_TX_UUID); } catch (_) {}
+
+            try {
+                ctrIndicateCharacteristic = await ctrService.getCharacteristic(CTR_INDICATE_UUID);
+                await ctrIndicateCharacteristic.startNotifications();
+                ctrIndicateCharacteristic.addEventListener('characteristicvaluechanged', handleCtrIndicate);
+                log("EEF3 CTR Indicate 已开启");
+            } catch (error) {
+                log("EEF3 CTR Indicate 获取失败：" + error.message);
+            }
+
+            try { ctrNotifyCharacteristic = await ctrService.getCharacteristic(CTR_NOTIFY_UUID); } catch (_) {}
+
+            dom.ctrServiceInfo.textContent = "0xEEF0 已就绪";
+        } catch (error) {
+            log("CTR Service 获取失败：" + error.message);
+            dom.ctrServiceInfo.textContent = "不可用";
+        }
+
+        dom.deviceName.textContent = bleDevice.name || BLE_DEVICE_NAME;
+        dom.bleStatus.textContent = "已连接";
+        dom.serviceInfo.textContent = "0xEEE0";
+        dom.rxInfo.textContent = "0xEEE1";
+        dom.indicateInfo.textContent = indicateCharacteristic ? "0xEEE3 已订阅" : "不可用";
+
+        dom.disconnectBtn.disabled = false;
+        updateSendButton();
+        updateWifiButton();
+        updateLedButtons();
+        log("BLE连接完成");
+    } catch (error) {
+        console.error(error);
+        log("连接失败：" + error.message);
+    }
+}
+
+dom.disconnectBtn.addEventListener('click', disconnectBLE);
+
+async function disconnectBLE() {
+    dom.disconnectBtn.disabled = true;
+    log("开始断开 BLE...");
+
+    // 1. 通过 CTR RX (0xEEF1) 发送断开命令，让 ESP32 主动 ble_gap_terminate
+    try {
+        if (ctrRxCharacteristic && bleDevice && bleDevice.gatt.connected) {
+            const cmd = new TextEncoder().encode("SET:BLE_DISCONNECT");
+            log("网页 -> ESP32: SET:BLE_DISCONNECT");
+            await ctrRxCharacteristic.writeValueWithoutResponse(cmd);
+
+            // 等 ESP32 通过 CTR Indicate (0xEEF3) 回 ACK+BLE_DISCONNECT
+            try {
+                const ackText = await waitForDisconnectAck(3000);
+                log("ESP32 确认断开：" + ackText.trim());
+                await sleep(300);
+            } catch (err) {
+                log("等待 ESP32 断开确认超时：" + err.message);
+            }
+        } else {
+            log("CTR RX 不可用，跳过 ESP32 主动断开流程");
+        }
+    } catch (e) {
+        log("发送断开命令失败：" + e.message);
+    }
+
+    // 2. 兜底：如果此时还连着，就调用 gatt.disconnect()
+    try {
+        if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+            bleDevice.gatt.disconnect();
+            log("已调用 gatt.disconnect() 兜底");
+        }
+    } catch (e) {
+        log("gatt.disconnect 异常：" + e.message);
+    }
+}
+
+function waitForDisconnectAck(timeout = 3000) {
+    return new Promise((resolve, reject) => {
+        if (disconnectAckResolve) {
+            disconnectAckResolve = null;
+            if (disconnectAckTimer) { clearTimeout(disconnectAckTimer); disconnectAckTimer = null; }
+        }
+        disconnectAckTimer = setTimeout(() => {
+            disconnectAckResolve = null;
+            disconnectAckTimer = null;
+            reject(new Error("等待 ESP32 断开确认超时"));
+        }, timeout);
+        disconnectAckResolve = (data) => {
+            clearTimeout(disconnectAckTimer);
+            disconnectAckTimer = null;
+            resolve(data);
+        };
+    });
+}
+
+function onDisconnected() {
+    log("BLE已断开");
+    dom.bleStatus.textContent = "未连接";
+    dom.disconnectBtn.disabled = true;
+    dom.ctrServiceInfo.textContent = "---";
+
+    // 清空 CTR 句柄
+    ctrService = null;
+    ctrRxCharacteristic = null;
+    ctrTxCharacteristic = null;
+    ctrIndicateCharacteristic = null;
+    ctrNotifyCharacteristic = null;
+
+    // 清空 LED 等待
+    if (ledAckResolve) { ledAckResolve = null; }
+    if (ledAckTimer) { clearTimeout(ledAckTimer); ledAckTimer = null; }
+
+    // 清空断开等待
+    if (disconnectAckResolve) { disconnectAckResolve = null; }
+    if (disconnectAckTimer) { clearTimeout(disconnectAckTimer); disconnectAckTimer = null; }
+
+    updateSendButton();
+    updateWifiButton();
+    updateLedButtons();
+}
+
+function handleIndicate(event) {
+    const value = event.target.value;
+    const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    const text = new TextDecoder().decode(bytes);
+    log("ESP32 -> " + text);
+
+    // 检测 EXIT 确认
+    if (text.includes('\r\n')) {
+        if (exitAckResolve) {
+            exitAckResolve(text);
+            exitAckResolve = null;
+            exitAckReject = null;
+            if (exitAckTimer) { clearTimeout(exitAckTimer); exitAckTimer = null; }
+        }
+    }
+
+    // WiFi 配置响应
+    if (wifiConfigResolve) {
+        if (text.includes("WIFI_OK")) {
+            wifiConfigResolve("WIFI_OK");
+            wifiConfigResolve = null;
+            wifiConfigReject = null;
+        } else if (text.includes("WIFI_ERR")) {
+            wifiConfigResolve("WIFI_ERR");
+            wifiConfigResolve = null;
+            wifiConfigReject = null;
+        }
+    }
+
+    // ACK 处理
+    if (ackWaiter && text.startsWith("ACK+")) {
+        const match = text.match(/ACK\+(\d+)/);
+        if (match) {
+            const ackNumber = parseInt(match[1]);
+            const resolve = ackWaiter;
+            ackWaiter = null;
+            resolve(ackNumber);
+        }
+    }
+}
+
+// CTR Indicate 专用处理（LED 命令 / 断开命令的响应）
+function handleCtrIndicate(event) {
+    const value = event.target.value;
+    const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    const text = new TextDecoder().decode(bytes);
+    log("CTR <- " + text.trim());
+
+    // LED 命令的响应
+    if (ledAckResolve && (text.includes("ACK+LED_ON") || text.includes("ACK+LED_OFF"))) {
+        const resolve = ledAckResolve;
+        ledAckResolve = null;
+        if (ledAckTimer) { clearTimeout(ledAckTimer); ledAckTimer = null; }
+        resolve(text);
+    }
+
+    // 断开命令的响应
+    if (disconnectAckResolve && text.includes("ACK+BLE_DISCONNECT")) {
+        const resolve = disconnectAckResolve;
+        disconnectAckResolve = null;
+        if (disconnectAckTimer) { clearTimeout(disconnectAckTimer); disconnectAckTimer = null; }
+        resolve(text);
+    }
+}
+
+function waitForAck(timeout = 3000) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            if (ackWaiter) { ackWaiter = null; reject(new Error("等待 ACK 超时")); }
+        }, timeout);
+        ackWaiter = (ackNumber) => {
+            clearTimeout(timer);
+            resolve(ackNumber);
+        };
+    });
+}
+
+async function writeString(text) {
+    if (!rxCharacteristic) throw new Error("RX Characteristic不存在");
+    const data = new TextEncoder().encode(text);
+    log("网页 -> ESP32: " + text);
+    await rxCharacteristic.writeValueWithoutResponse(data);
+}
+
+function waitForExitAck(timeout = 3000) {
+    return new Promise((resolve, reject) => {
+        if (exitAckResolve) {
+            exitAckResolve = null;
+            exitAckReject = null;
+            if (exitAckTimer) { clearTimeout(exitAckTimer); exitAckTimer = null; }
+        }
+        exitAckTimer = setTimeout(() => {
+            exitAckResolve = null;
+            exitAckReject = null;
+            reject(new Error("等待 ESP32 EXIT 确认超时"));
+        }, timeout);
+        exitAckResolve = (data) => {
+            clearTimeout(exitAckTimer);
+            exitAckTimer = null;
+            resolve(data);
+        };
+        exitAckReject = (err) => {
+            clearTimeout(exitAckTimer);
+            exitAckTimer = null;
+            reject(err);
+        };
+    });
+}
+
+// ============================================================
+//  图片加载 + 截图逻辑
+// ============================================================
+dom.imageFile.addEventListener('change', handleImageFile);
+
+async function handleImageFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const sizeKB = (file.size / 1024).toFixed(1);
+    dom.fileSizeInfo.textContent = `${sizeKB} KB`;
+    log("选择图片：" + file.name + ` (${sizeKB} KB)`);
+
+    const image = new Image();
+    image.src = URL.createObjectURL(file);
+    await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+    });
+
+    // 补边处理：当图片某边小于最小尺寸时，补白到最小尺寸
+    const MIN_W = 128;
+    const MIN_H = 250;
+    const imgW = image.naturalWidth;
+    const imgH = image.naturalHeight;
+    let processedImage = image;
+
+    if (imgW < MIN_W || imgH < MIN_H) {
+        const padW = Math.max(imgW, MIN_W);
+        const padH = Math.max(imgH, MIN_H);
+        const padCanvas = document.createElement('canvas');
+        padCanvas.width = padW;
+        padCanvas.height = padH;
+        const padCtx = padCanvas.getContext('2d');
+        padCtx.fillStyle = '#FFFFFF';
+        padCtx.fillRect(0, 0, padW, padH);
+        const dx = Math.floor((padW - imgW) / 2);
+        const dy = Math.floor((padH - imgH) / 2);
+        padCtx.drawImage(image, dx, dy);
+        processedImage = padCanvas;
+        log(`图片尺寸 ${imgW}×${imgH} 不足最小尺寸，已补白至 ${padW}×${padH}`);
+    }
+
+    sourceImage = processedImage;
+
+    cropState.fullImage = processedImage;
+    cropState.fullWidth = processedImage.width || processedImage.naturalWidth;
+    cropState.fullHeight = processedImage.height || processedImage.naturalHeight;
+    cropState.done = false;
+
+    originalImage = processedImage;
+    dom.imageWidth.value = cropState.fullWidth;
+    dom.imageHeight.value = cropState.fullHeight;
+    drawOriginalImage();
+
+    const needCrop = (cropState.fullWidth > 128 || cropState.fullHeight > 250);
+    dom.sizeBadge.textContent = needCrop ?
+        `⚠️ 尺寸 ${cropState.fullWidth}×${cropState.fullHeight} 超过 128×250，需截图` :
+        `✓ 尺寸 ${cropState.fullWidth}×${cropState.fullHeight} 符合要求`;
+
+    if (needCrop) {
+        cropState.active = true;
+        dom.cropTip.classList.add('active');
+        dom.cropDoneTip.classList.remove('active');
+        showCropSection();
+        showScreenshot(processedImage);
+        dom.cropBtn.disabled = false;
+        dom.sendBtn.disabled = true;
+        log("图片尺寸过大，请拖动截图框选择区域（松开即自动裁剪）");
+    } else {
+        cropState.active = false;
+        dom.cropTip.classList.remove('active');
+        dom.cropDoneTip.classList.remove('active');
+        dom.cropBtn.disabled = true;
+        hideCropSection();
+        convertImage();
+        log("图片尺寸符合要求（或已补白），无需截图");
+    }
+    updateSendButton();
+}
+
+// ============================================================
+//  裁剪区域显示/隐藏控制
+// ============================================================
+function showCropSection() {
+    dom.cropSection.classList.remove('crop-section-hidden');
+    dom.cropSizeRow.style.display = '';
+}
+
+function hideCropSection() {
+    dom.cropSection.classList.add('crop-section-hidden');
+    dom.cropSizeRow.style.display = 'none';
+    clearScreenshotCanvas();
+}
+
+// ============================================================
+//  显示截图
+// ============================================================
+function showScreenshot(image) {
+    const canvas = dom.screenshotCanvas;
+    const ctx = canvas.getContext('2d');
+    const cw = canvas.width;
+    const ch = canvas.height;
+
+    const iw = image.naturalWidth || image.width;
+    const ih = image.naturalHeight || image.height;
+
+    const scaleX = cw / iw;
+    const scaleY = ch / ih;
+    const scale = Math.min(scaleX, scaleY, 1);
+    const dw = iw * scale;
+    const dh = ih * scale;
+    const ox = (cw - dw) / 2;
+    const oy = (ch - dh) / 2;
+
+    cropState.scale = scale;
+    cropState.offsetX = ox;
+    cropState.offsetY = oy;
+    cropState.displayWidth = dw;
+    cropState.displayHeight = dh;
+
+    let bw = parseInt(dom.cropBoxWidth.value) || 128;
+    let bh = parseInt(dom.cropBoxHeight.value) || 250;
+    bw = Math.min(bw, dw);
+    bh = Math.min(bh, dh);
+    cropState.boxW = bw;
+    cropState.boxH = bh;
+
+    cropState.boxX = ox + (dw - bw) / 2;
+    cropState.boxY = oy + (dh - bh) / 2;
+    clampBox();
+
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.fillStyle = '#e8e8e8';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(image, ox, oy, dw, dh);
+
+    redrawScreenshot();
+    dom.cropCoords.textContent = `框位置: (${Math.round(cropState.boxX)}, ${Math.round(cropState.boxY)})  尺寸: ${Math.round(cropState.boxW)}×${Math.round(cropState.boxH)}`;
+    screenshotData = new Uint8Array(1);
+    dom.cropBtn.disabled = false;
+    updateCropPreview();
+}
+
+function redrawScreenshot() {
+    const canvas = dom.screenshotCanvas;
+    const ctx = canvas.getContext('2d');
+    const cw = canvas.width, ch = canvas.height;
+    const img = cropState.fullImage;
+    if (!img) return;
+
+    const scale = cropState.scale;
+    const ox = cropState.offsetX, oy = cropState.offsetY;
+    const dw = cropState.displayWidth, dh = cropState.displayHeight;
+
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.fillStyle = '#e8e8e8';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(img, ox, oy, dw, dh);
+
+    const bx = cropState.boxX, by = cropState.boxY, bw = cropState.boxW, bh = cropState.boxH;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(0, 0, cw, by);
+    ctx.fillRect(0, by + bh, cw, ch - by - bh);
+    ctx.fillRect(0, by, bx, bh);
+    ctx.fillRect(bx + bw, by, cw - bx - bw, bh);
+
+    if (cropState.done) {
+        ctx.strokeStyle = '#52c41a';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 3]);
+        ctx.strokeRect(bx, by, bw, bh);
+        ctx.setLineDash([]);
+    }
+
+    ctx.strokeStyle = '#ff4d4f';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([]);
+    ctx.strokeRect(bx, by, bw, bh);
+
+    const cornerSize = 10;
+    const corners = [
+        [bx, by, 1, 1],
+        [bx + bw, by, -1, 1],
+        [bx, by + bh, 1, -1],
+        [bx + bw, by + bh, -1, -1]
+    ];
+    for (const [cx, cy, dx, dy] of corners) {
+        ctx.beginPath();
+        ctx.moveTo(cx + dx * cornerSize, cy);
+        ctx.lineTo(cx, cy);
+        ctx.lineTo(cx, cy + dy * cornerSize);
+        ctx.stroke();
+    }
+
+    ctx.fillStyle = '#ff4d4f';
+    ctx.font = '13px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${Math.round(bw)}×${Math.round(bh)}`, bx + 4, by - 6);
+    dom.cropCoords.textContent = `框位置: (${Math.round(bx)}, ${Math.round(by)})  尺寸: ${Math.round(bw)}×${Math.round(bh)}`;
+    updateCropPreview();
+}
+
+// ============================================================
+//  实时选区预览
+// ============================================================
+function updateCropPreview() {
+    const box = cropState;
+    if (!box.fullImage) {
+        dom.cropPreviewCanvas.getContext('2d').clearRect(0, 0, dom.cropPreviewCanvas.width, dom.cropPreviewCanvas.height);
+        dom.previewInfo.textContent = '等待选择';
+        return;
+    }
+
+    const scale = box.scale;
+    const ox = box.offsetX, oy = box.offsetY;
+    let bx = box.boxX, by = box.boxY, bw = box.boxW, bh = box.boxH;
+
+    let origX = Math.floor((bx - ox) / scale);
+    let origY = Math.floor((by - oy) / scale);
+    let origW = Math.floor(bw / scale);
+    let origH = Math.floor(bh / scale);
+
+    const fullW = box.fullWidth;
+    const fullH = box.fullHeight;
+    origX = Math.max(0, Math.min(origX, fullW));
+    origY = Math.max(0, Math.min(origY, fullH));
+    origW = Math.max(1, Math.min(origW, fullW - origX));
+    origH = Math.max(1, Math.min(origH, fullH - origY));
+
+    if (origW < 1 || origH < 1) {
+        dom.previewInfo.textContent = '选区无效';
+        return;
+    }
+
+    const outW = Math.round(bw);
+    const outH = Math.round(bh);
+    const pCanvas = dom.cropPreviewCanvas;
+    const pCtx = pCanvas.getContext('2d');
+    pCanvas.width = outW;
+    pCanvas.height = outH;
+
+    pCtx.clearRect(0, 0, outW, outH);
+    pCtx.drawImage(box.fullImage, origX, origY, origW, origH, 0, 0, outW, outH);
+
+    dom.previewInfo.textContent = `输出: ${outW}×${outH}  (原图区域 ${origW}×${origH})`;
+}
+
+// ============================================================
+//  矩形框拖动逻辑
+// ============================================================
+function clampBox() {
+    const box = cropState;
+    const ox = box.offsetX, oy = box.offsetY;
+    const dw = box.displayWidth, dh = box.displayHeight;
+    const bw = box.boxW, bh = box.boxH;
+    box.boxX = Math.max(ox, Math.min(ox + dw - bw, box.boxX));
+    box.boxY = Math.max(oy, Math.min(oy + dh - bh, box.boxY));
+}
+
+dom.screenshotCanvas.addEventListener('mousedown', onMouseDown);
+dom.screenshotCanvas.addEventListener('mousemove', onMouseMove);
+dom.screenshotCanvas.addEventListener('mouseup', onMouseUp);
+dom.screenshotCanvas.addEventListener('mouseleave', onMouseUp);
+
+function onMouseDown(e) {
+    if (!screenshotData) return;
+    if (!cropState.active) return;
+    const canvas = dom.screenshotCanvas;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+
+    const box = cropState;
+    if (mx >= box.boxX && mx <= box.boxX + box.boxW &&
+        my >= box.boxY && my <= box.boxY + box.boxH) {
+        isDragging = true;
+        dragOffsetX = mx - box.boxX;
+        dragOffsetY = my - box.boxY;
+        canvas.classList.add('dragging');
+        e.preventDefault();
+    }
+}
+
+function onMouseMove(e) {
+    if (!isDragging) return;
+    const canvas = dom.screenshotCanvas;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+
+    let newX = mx - dragOffsetX;
+    let newY = my - dragOffsetY;
+    const box = cropState;
+    const ox = box.offsetX, oy = box.offsetY;
+    const dw = box.displayWidth, dh = box.displayHeight;
+    const bw = box.boxW, bh = box.boxH;
+    newX = Math.max(ox, Math.min(ox + dw - bw, newX));
+    newY = Math.max(oy, Math.min(oy + dh - bh, newY));
+
+    box.boxX = newX;
+    box.boxY = newY;
+    redrawScreenshot();
+    e.preventDefault();
+}
+
+function onMouseUp(e) {
+    if (isDragging) {
+        isDragging = false;
+        dom.screenshotCanvas.classList.remove('dragging');
+        redrawScreenshot();
+        autoCrop();
+    }
+}
+
+let autoCropTimer = null;
+function autoCrop() {
+    if (autoCropTimer) clearTimeout(autoCropTimer);
+    autoCropTimer = setTimeout(() => {
+        autoCropTimer = null;
+        cropImage();
+    }, 150);
+}
+
+dom.cropBoxWidth.addEventListener('change', updateBoxSize);
+dom.cropBoxHeight.addEventListener('change', updateBoxSize);
+
+function updateBoxSize() {
+    if (!cropState.fullImage) return;
+    let w = parseInt(dom.cropBoxWidth.value) || 128;
+    let h = parseInt(dom.cropBoxHeight.value) || 250;
+    w = Math.min(w, cropState.displayWidth);
+    h = Math.min(h, cropState.displayHeight);
+    cropState.boxW = w;
+    cropState.boxH = h;
+    clampBox();
+    redrawScreenshot();
+}
+
+// ============================================================
+//  裁剪截图
+// ============================================================
+dom.cropBtn.addEventListener('click', cropImage);
+
+function cropImage() {
+    if (!screenshotData) {
+        alert('请先在截图画布上选择区域');
+        return;
+    }
+
+    const box = cropState;
+    const scale = box.scale;
+    const ox = box.offsetX;
+    const oy = box.offsetY;
+
+    let bx = box.boxX, by = box.boxY, bw = box.boxW, bh = box.boxH;
+
+    let origX = Math.floor((bx - ox) / scale);
+    let origY = Math.floor((by - oy) / scale);
+    let origW = Math.floor(bw / scale);
+    let origH = Math.floor(bh / scale);
+
+    const fullW = box.fullWidth;
+    const fullH = box.fullHeight;
+    origX = Math.max(0, Math.min(origX, fullW));
+    origY = Math.max(0, Math.min(origY, fullH));
+    origW = Math.max(1, Math.min(origW, fullW - origX));
+    origH = Math.max(1, Math.min(origH, fullH - origY));
+
+    if (origW < 1 || origH < 1) {
+        alert('选区无效，请重新调整');
+        return;
+    }
+
+    const outW = Math.round(bw);
+    const outH = Math.round(bh);
+    const isRecrop = cropState.done;
+    log(`${isRecrop ? '重新裁剪' : '裁剪'}：原图区域 (${origX}, ${origY}) ${origW}×${origH} -> 缩放至 ${outW}×${outH}`);
+
+    dom.debugInfo.textContent = `原图区域: (${origX}, ${origY}) ${origW}×${origH} → 输出: ${outW}×${outH}`;
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = outW;
+    tempCanvas.height = outH;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(box.fullImage, origX, origY, origW, origH, 0, 0, outW, outH);
+
+    originalImage = tempCanvas;
+    dom.imageWidth.value = outW;
+    dom.imageHeight.value = outH;
+
+    cropState.done = true;
+    drawOriginalImage();
+
+    dom.cropDoneTip.classList.add('active');
+    dom.cropDoneText.textContent = `已裁剪为 ${outW}×${outH}。如需调整，可继续拖动裁剪框后重新裁剪。`;
+
+    dom.sizeBadge.textContent = `✂ 已裁剪为 ${outW}×${outH}`;
+
+    redrawScreenshot();
+    updateCropPreview();
+    convertImage();
+    updateSendButton();
+    log(`截图完成：输出尺寸 ${outW}×${outH}（可继续调整裁剪框重新裁剪）`);
+}
+
+// ============================================================
+//  重置截图
+// ============================================================
+dom.resetCropBtn.addEventListener('click', resetCrop);
+
+function resetCrop() {
+    if (!sourceImage) {
+        alert('请先选择图片');
+        return;
+    }
+
+    cropState.fullImage = sourceImage;
+    cropState.fullWidth = sourceImage.naturalWidth || sourceImage.width;
+    cropState.fullHeight = sourceImage.naturalHeight || sourceImage.height;
+    cropState.done = false;
+    cropState.active = true;
+
+    originalImage = sourceImage;
+    dom.imageWidth.value = cropState.fullWidth;
+    dom.imageHeight.value = cropState.fullHeight;
+
+    showCropSection();
+    showScreenshot(sourceImage);
+    dom.cropBtn.disabled = false;
+    dom.cropTip.classList.add('active');
+    dom.cropDoneTip.classList.remove('active');
+    dom.sizeBadge.textContent = `⚠️ 尺寸 ${cropState.fullWidth}×${cropState.fullHeight} 超过 128×250，需截图`;
+    dom.sendBtn.disabled = true;
+    dom.debugInfo.textContent = '';
+    drawOriginalImage();
+    convertImage();
+    log('已重置截图，请拖动框选择区域');
+}
+
+// ============================================================
+//  清空截图
+// ============================================================
+function clearScreenshotCanvas() {
+    const canvas = dom.screenshotCanvas;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#666';
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('点击「选择图片」加载图片', canvas.width / 2, canvas.height / 2 - 10);
+    ctx.fillText('尺寸超过 128×250 时自动启用截图', canvas.width / 2, canvas.height / 2 + 20);
+    screenshotData = null;
+    dom.cropCoords.textContent = '';
+    dom.cropBtn.disabled = true;
+}
+
+// ============================================================
+//  旋转功能
+// ============================================================
+function rotateImage(degrees) {
+    if (!sourceImage) {
+        alert('请先选择图片');
+        return;
+    }
+
+    const img = sourceImage;
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+
+    let newW, newH;
+    let angle = 0;
+    if (degrees === 90 || degrees === -90) {
+        newW = h;
+        newH = w;
+        angle = degrees * Math.PI / 180;
+    } else if (degrees === 180) {
+        newW = w;
+        newH = h;
+        angle = Math.PI;
+    } else {
+        return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = newW;
+    canvas.height = newH;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(newW / 2, newH / 2);
+    ctx.rotate(angle);
+    ctx.drawImage(img, -w/2, -h/2, w, h);
+
+    const rotatedImg = new Image();
+    rotatedImg.src = canvas.toDataURL('image/png');
+    rotatedImg.onload = function() {
+        sourceImage = rotatedImg;
+        cropState.fullImage = rotatedImg;
+        cropState.fullWidth = rotatedImg.naturalWidth;
+        cropState.fullHeight = rotatedImg.naturalHeight;
+        cropState.done = false;
+        cropState.active = true;
+
+        originalImage = rotatedImg;
+        dom.imageWidth.value = cropState.fullWidth;
+        dom.imageHeight.value = cropState.fullHeight;
+
+        showCropSection();
+        showScreenshot(rotatedImg);
+        dom.cropBtn.disabled = false;
+        dom.cropTip.classList.add('active');
+        dom.cropDoneTip.classList.remove('active');
+        dom.sizeBadge.textContent = `⚠️ 尺寸 ${cropState.fullWidth}×${cropState.fullHeight} 超过 128×250，需截图`;
+        dom.sendBtn.disabled = true;
+        dom.debugInfo.textContent = '';
+        drawOriginalImage();
+        convertImage();
+        updateSendButton();
+        log(`图片已旋转 ${degrees}°`);
+    };
+    rotatedImg.onerror = function() {
+        alert('旋转失败，请重试');
+    };
+}
+
+dom.rotateLeftBtn.addEventListener('click', () => rotateImage(-90));
+dom.rotateRightBtn.addEventListener('click', () => rotateImage(90));
+dom.rotate180Btn.addEventListener('click', () => rotateImage(180));
+
+dom.cropTipCloseBtn.addEventListener('click', () => {
+    dom.cropTip.classList.remove('active');
+});
+
+// ============================================================
+//  图片转换 + 预览
+// ============================================================
+dom.useOriginalSizeBtn.addEventListener('click', () => {
+    if (!originalImage) return;
+    const w = originalImage.width || originalImage.naturalWidth;
+    const h = originalImage.height || originalImage.naturalHeight;
+    dom.imageWidth.value = w;
+    dom.imageHeight.value = h;
+    convertImage();
+});
+
+dom.imageWidth.addEventListener('change', convertImage);
+dom.imageHeight.addEventListener('change', convertImage);
+dom.bitDepth.addEventListener('change', convertImage);
+dom.scanMode.addEventListener('change', convertImage);
+dom.invertCheckbox.addEventListener('change', convertImage);
+dom.sendInvertCheckbox.addEventListener('change', convertImage);
+
+function drawOriginalImage() {
+    if (!originalImage) return;
+    const canvas = dom.originalCanvas;
+    const ctx = canvas.getContext('2d');
+    const w = originalImage.width || originalImage.naturalWidth;
+    const h = originalImage.height || originalImage.naturalHeight;
+    canvas.width = w;
+    canvas.height = h;
+    ctx.drawImage(originalImage, 0, 0);
+}
+
+function rgbToGray(r, g, b) {
+    return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+}
+
+function imageToBitmap(imageData, width, height, bitDepth) {
+    const pixels = imageData.data;
+    if (bitDepth === 1) {
+        const bytesPerRow = Math.ceil(width / 8);
+        const result = new Uint8Array(bytesPerRow * height);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const pos = (y * width + x) * 4;
+                const gray = rgbToGray(pixels[pos], pixels[pos+1], pixels[pos+2]);
+                if (gray < 128) {
+                    const byteIndex = y * bytesPerRow + Math.floor(x / 8);
+                    const bitIndex = 7 - (x % 8);
+                    result[byteIndex] |= (1 << bitIndex);
+                }
+            }
+        }
+        return result;
+    }
+    if (bitDepth === 2) {
+        const totalBytes = Math.ceil(width * height / 4);
+        const result = new Uint8Array(totalBytes);
+        for (let i = 0; i < width * height; i++) {
+            const pos = i * 4;
+            const gray = rgbToGray(pixels[pos], pixels[pos+1], pixels[pos+2]);
+            const value = Math.round(gray * 3 / 255);
+            const byteIndex = Math.floor(i / 4);
+            const shift = 6 - (i % 4) * 2;
+            result[byteIndex] |= value << shift;
+        }
+        return result;
+    }
+    if (bitDepth === 4) {
+        const totalBytes = Math.ceil(width * height / 2);
+        const result = new Uint8Array(totalBytes);
+        for (let i = 0; i < width * height; i++) {
+            const pos = i * 4;
+            const gray = rgbToGray(pixels[pos], pixels[pos+1], pixels[pos+2]);
+            const value = Math.round(gray * 15 / 255);
+            const byteIndex = Math.floor(i / 2);
+            if ((i & 1) === 0) {
+                result[byteIndex] |= value << 4;
+            } else {
+                result[byteIndex] |= value;
+            }
+        }
+        return result;
+    }
+    if (bitDepth === 8) {
+        const result = new Uint8Array(width * height);
+        for (let i = 0; i < width * height; i++) {
+            const pos = i * 4;
+            result[i] = rgbToGray(pixels[pos], pixels[pos+1], pixels[pos+2]);
+        }
+        return result;
+    }
+    return new Uint8Array();
+}
+
+function invertData(data, bitDepth) {
+    const result = new Uint8Array(data);
+    if (bitDepth === 1) {
+        for (let i = 0; i < result.length; i++) result[i] = ~result[i] & 0xFF;
+        return result;
+    }
+    if (bitDepth === 2) {
+        for (let i = 0; i < result.length; i++) {
+            let b = result[i];
+            let out = 0;
+            for (let shift = 6; shift >= 0; shift -= 2) {
+                let val = (b >> shift) & 0x03;
+                val = 3 - val;
+                out |= val << shift;
+            }
+            result[i] = out;
+        }
+        return result;
+    }
+    if (bitDepth === 4) {
+        for (let i = 0; i < result.length; i++) {
+            let b = result[i];
+            let high = (b >> 4) & 0x0F;
+            let low = b & 0x0F;
+            high = 15 - high;
+            low = 15 - low;
+            result[i] = (high << 4) | low;
+        }
+        return result;
+    }
+    if (bitDepth === 8) {
+        for (let i = 0; i < result.length; i++) result[i] = 255 - result[i];
+        return result;
+    }
+    return result;
+}
+
+function convertImage() {
+    if (!originalImage) return;
+    const width = parseInt(dom.imageWidth.value);
+    const height = parseInt(dom.imageHeight.value);
+    const bitDepth = parseInt(dom.bitDepth.value);
+    const previewInvertEnabled = dom.invertCheckbox.checked;
+    const sendInvertEnabled = dom.sendInvertCheckbox.checked;
+
+    if (width <= 0 || height <= 0) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(originalImage, 0, 0, width, height);
+    const imageData = ctx.getImageData(0, 0, width, height);
+
+    let data = imageToBitmap(imageData, width, height, bitDepth);
+
+    if (sendInvertEnabled) {
+        data = invertData(data, bitDepth);
+    }
+
+    convertedData = data;
+
+    dom.sizeInfo.textContent = `${width} × ${height}`;
+    dom.dataSizeInfo.textContent = `${convertedData.length} Bytes`;
+    packetTotal = Math.ceil(convertedData.length / packetSize);
+    dom.packetSizeInfo.textContent = `${packetSize} Bytes data`;
+    dom.packetCountInfo.textContent = packetTotal;
+
+    drawConvertedPreview(width, height, bitDepth, data, previewInvertEnabled);
+
+    updateSendButton();
+}
+
+function drawConvertedPreview(width, height, bitDepth, data, previewInvertEnabled) {
+    const canvas = dom.previewCanvas;
+    const ctx = canvas.getContext('2d');
+    canvas.width = width;
+    canvas.height = height;
+    const imageData = ctx.createImageData(width, height);
+    const pixels = imageData.data;
+    const totalPixels = width * height;
+
+    for (let i = 0; i < totalPixels; i++) {
+        let value = 0;
+        if (bitDepth === 1) {
+            const byteIndex = i >> 3;
+            const bitIndex = 7 - (i & 7);
+            value = (data[byteIndex] >> bitIndex) & 1;
+            value = value ? 0 : 255;
+        } else if (bitDepth === 2) {
+            const byteIndex = i >> 2;
+            const shift = 6 - (i & 3) * 2;
+            value = (data[byteIndex] >> shift) & 3;
+            value = Math.round(value * 255 / 3);
+        } else if (bitDepth === 4) {
+            const byteIndex = i >> 1;
+            if ((i & 1) === 0) {
+                value = (data[byteIndex] >> 4) & 0x0F;
+            } else {
+                value = data[byteIndex] & 0x0F;
+            }
+            value = Math.round(value * 255 / 15);
+        } else if (bitDepth === 8) {
+            value = data[i];
+        }
+
+        if (previewInvertEnabled) {
+            value = 255 - value;
+        }
+
+        const pos = i * 4;
+        pixels[pos] = value;
+        pixels[pos+1] = value;
+        pixels[pos+2] = value;
+        pixels[pos+3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
+}
+
+function updateSendButton() {
+    const connected = bleDevice && bleDevice.gatt && bleDevice.gatt.connected;
+    const hasData = convertedData && convertedData.length > 0;
+    const blocking = cropState.active && !cropState.done;
+    const canSend = connected && rxCharacteristic && indicateCharacteristic && hasData && !blocking;
+    dom.sendBtn.disabled = !canSend;
+    dom.retryBtn.disabled = !(connected && hasData);
+}
+
+// ============================================================
+//  WiFi 配置功能
+// ============================================================
+function updateWifiButton() {
+    const connected = bleDevice && bleDevice.gatt && bleDevice.gatt.connected;
+    dom.wifiSendBtn.disabled = !connected;
+}
+
+dom.wifiSendBtn.addEventListener('click', sendWiFiConfig);
+
+async function sendWiFiConfig() {
+    const ssid = dom.wifiSsid.value.trim();
+    const password = dom.wifiPassword.value.trim();
+    if (!ssid) {
+        dom.wifiStatus.textContent = '❌ 请输入 SSID';
+        dom.wifiStatus.className = 'wifi-status error';
+        return;
+    }
+    if (password.length < 8) {
+        dom.wifiStatus.textContent = '⚠️ 密码长度至少 8 位（若无需密码请填任意8位）';
+        dom.wifiStatus.className = 'wifi-status error';
+        return;
+    }
+    if (!rxCharacteristic || !indicateCharacteristic) {
+        dom.wifiStatus.textContent = '❌ BLE 未就绪';
+        dom.wifiStatus.className = 'wifi-status error';
+        return;
+    }
+
+    dom.wifiSendBtn.disabled = true;
+    dom.wifiStatus.textContent = '⏳ 发送配置中...';
+    dom.wifiStatus.className = 'wifi-status sending';
+
+    try {
+        await writeString("UPDATE_WIFI");
+        log("已发送 UPDATE_WIFI");
+        await sleep(200);
+
+        const msg = `WIFIINFO SSID:${ssid} KEY:${password}`;
+        await writeString(msg);
+        log("已发送 WiFi 信息：" + msg);
+
+        const result = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                wifiConfigResolve = null;
+                wifiConfigReject = null;
+                reject(new Error("等待 ESP 响应超时 (10s)"));
+            }, 10000);
+            wifiConfigResolve = (res) => { clearTimeout(timeout); resolve(res); };
+            wifiConfigReject = (err) => { clearTimeout(timeout); reject(err); };
+        });
+
+        if (result === "WIFI_OK") {
+            dom.wifiStatus.textContent = '✅ WiFi 配置成功！';
+            dom.wifiStatus.className = 'wifi-status success';
+            log("WiFi 配置成功");
+        } else if (result === "WIFI_ERR") {
+            dom.wifiStatus.textContent = '❌ WiFi 配置失败，请检查 SSID 和密码';
+            dom.wifiStatus.className = 'wifi-status error';
+            log("WiFi 配置失败");
+        } else {
+            dom.wifiStatus.textContent = '⚠️ 未知响应: ' + result;
+            dom.wifiStatus.className = 'wifi-status error';
+            log("未知响应: " + result);
+        }
+
+        await writeString("EXIT");
+        log("已发送 EXIT");
+        try { await waitForExitAck(2000); log("ESP 确认 EXIT"); } catch (e) { log("EXIT 确认超时"); }
+
+    } catch (error) {
+        console.error(error);
+        dom.wifiStatus.textContent = '❌ 配置失败：' + error.message;
+        dom.wifiStatus.className = 'wifi-status error';
+        log("WiFi 配置异常：" + error.message);
+        try { await writeString("EXIT"); } catch (_) {}
+    } finally {
+        dom.wifiSendBtn.disabled = false;
+        wifiConfigResolve = null;
+        wifiConfigReject = null;
+    }
+}
+
+// ============================================================
+//  LED 控制功能（新增）
+// ============================================================
+function updateLedButtons() {
+    const connected = bleDevice && bleDevice.gatt && bleDevice.gatt.connected;
+    const ready = connected && ctrRxCharacteristic;
+    dom.ledOnBtn.disabled = !ready;
+    dom.ledOffBtn.disabled = !ready;
+}
+
+async function sendLedCommand(cmd) {
+    if (!ctrRxCharacteristic) {
+        dom.ledStatus.textContent = '❌ CTR RX 不可用（请确认 ESP32 已连接并订阅 0xEEF0）';
+        dom.ledStatus.className = 'wifi-status error';
+        return;
+    }
+    try {
+        dom.ledOnBtn.disabled = true;
+        dom.ledOffBtn.disabled = true;
+        dom.ledStatus.textContent = '⏳ 正在发送 ' + cmd + ' ...';
+        dom.ledStatus.className = 'wifi-status sending';
+
+        const data = new TextEncoder().encode(cmd);
+        log("LED 命令 -> ESP32: " + cmd);
+        await ctrRxCharacteristic.writeValueWithoutResponse(data);
+
+        const result = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                ledAckResolve = null;
+                ledAckTimer = null;
+                reject(new Error('等待 ESP32 响应超时 (5s)'));
+            }, 5000);
+            ledAckTimer = timeout;
+            ledAckResolve = (res) => resolve(res);
+        });
+
+        dom.ledStatus.textContent = '✅ ESP32 响应：' + result.trim();
+        dom.ledStatus.className = 'wifi-status success';
+    } catch (error) {
+        dom.ledStatus.textContent = '❌ ' + error.message;
+        dom.ledStatus.className = 'wifi-status error';
+        log("LED 控制异常：" + error.message);
+    } finally {
+        updateLedButtons();
+    }
+}
+
+dom.ledOnBtn.addEventListener('click', () => sendLedCommand("SET:LED_ON"));
+dom.ledOffBtn.addEventListener('click', () => sendLedCommand("SET:LED_OFF"));
+
+// ============================================================
+//  发送图片
+// ============================================================
+let isSending = false;
+let sendAbortFlag = false;
+const MAX_RESEND = 3;
+
+dom.retryBtn.addEventListener('click', async () => {
+    if (isSending) {
+        sendAbortFlag = true;
+        log("正在中止当前发送...");
+        dom.retryBtn.disabled = true;
+        return;
+    }
+    try {
+        dom.retryBtn.disabled = true;
+        log("重试：发送 EXIT，等待 ESP32 确认...");
+        setProgress(0, "正在重试（发送 EXIT）...");
+        await writeString("EXIT");
+
+        try {
+            const ackData = await waitForExitAck(3000);
+            log(`收到 ESP32 确认: ${ackData.trim()}`);
+        } catch (timeoutErr) {
+            log("等待 EXIT 确认超时，继续重试...");
+        }
+
+        await sleep(300);
+        log("重新开始发送流程...");
+        await sendImage();
+    } catch (error) {
+        log("重试失败：" + error.message);
+        setProgress(0, "重试失败");
+        updateSendButton();
+    }
+});
+
+dom.sendBtn.addEventListener('click', sendImage);
+
+async function sendImage() {
+    if (!convertedData) {
+        alert("请先选择图片");
+        return;
+    }
+    if (!rxCharacteristic || !indicateCharacteristic) {
+        alert("BLE RX 或 Indicate 不可用");
+        return;
+    }
+    const width = parseInt(dom.imageWidth.value);
+    const height = parseInt(dom.imageHeight.value);
+    const bitDepth = parseInt(dom.bitDepth.value);
+    isSending = true;
+    sendAbortFlag = false;
+    dom.resendInfo.textContent = '';
+    try {
+        dom.sendBtn.disabled = true;
+        dom.retryBtn.disabled = false;
+        setProgress(0, "准备发送...");
+        await writeString("UPDATE_IMAGE");
+        await sleep(100);
+        packetTotal = Math.ceil(convertedData.length / packetSize);
+        const totalSize = packetTotal * packetSize;
+        const paddedData = new Uint8Array(totalSize);
+        paddedData.set(convertedData);
+        const picInfo = `PICINFO width:${width} heigh:${height} order:${dom.orderInput.value} size:${totalSize} Total:${packetTotal}`;
+        log("发送图片信息：" + picInfo);
+        await writeString(picInfo);
+        setProgress(0, "等待 ESP32 ACK+0...");
+
+        let infoAckOk = false;
+        for (let infoRetry = 0; infoRetry <= MAX_RESEND; infoRetry++) {
+            try {
+                const infoAck = await waitForAck(5000);
+                log("收到图片信息ACK：" + infoAck);
+                if (infoAck === 0) {
+                    infoAckOk = true;
+                    break;
+                } else {
+                    log(`图片信息ACK错误：收到 ACK+${infoAck}，期望 ACK+0`);
+                }
+            } catch (timeoutErr) {
+                if (sendAbortFlag) throw new Error("用户中止");
+                if (infoRetry < MAX_RESEND) {
+                    log(`图片信息ACK超时，重发 PICINFO (${infoRetry + 1}/${MAX_RESEND})...`);
+                    dom.resendInfo.textContent = `重发 PICINFO (${infoRetry + 1}/${MAX_RESEND})`;
+                    await writeString(picInfo);
+                    await sleep(100);
+                } else {
+                    throw new Error("图片信息ACK多次超时，放弃重发");
+                }
+            }
+        }
+        if (!infoAckOk) throw new Error("图片信息ACK多次失败");
+
+        let totalResends = 0;
+        for (let index = 0; index < packetTotal; index++) {
+            if (sendAbortFlag) {
+                log("发送已被用户中止");
+                setProgress(0, "已中止");
+                break;
+            }
+
+            const start = index * packetSize;
+            const end = start + packetSize;
+            const packetData = paddedData.slice(start, end);
+            const packet = new Uint8Array(4 + packetData.length);
+            packet[0] = index & 0xff;
+            packet[1] = (index >> 8) & 0xff;
+            packet[2] = packetSize & 0xff;
+            packet[3] = (packetSize >> 8) & 0xff;
+            packet.set(packetData, 4);
+
+            const expected = index + 1;
+            let ackOk = false;
+
+            for (let resend = 0; resend <= MAX_RESEND; resend++) {
+                if (sendAbortFlag) break;
+                try {
+                    if (resend === 0) {
+                        log(`发送 ${index + 1}/${packetTotal}`);
+                    } else {
+                        log(`重发 ${index + 1}/${packetTotal} (第${resend}次重发)`);
+                        totalResends++;
+                        dom.resendInfo.textContent = `累计重发: ${totalResends} 次`;
+                    }
+                    await rxCharacteristic.writeValueWithoutResponse(packet);
+                    const ack = await waitForAck(5000);
+                    if (ack === expected) {
+                        ackOk = true;
+                        break;
+                    } else {
+                        log(`ACK错误：收到 ACK+${ack}，期望 ACK+${expected}`);
+                        if (ack < expected && resend < MAX_RESEND) {
+                            log(`ESP32可能卡包，等待后重发...`);
+                            await sleep(200);
+                        }
+                    }
+                } catch (timeoutErr) {
+                    if (sendAbortFlag) break;
+                    if (resend < MAX_RESEND) {
+                        log(`等待 ACK+${expected} 超时，重发包 ${index + 1} (${resend + 1}/${MAX_RESEND})...`);
+                        dom.resendInfo.textContent = `包 ${index + 1} 重发中 (${resend + 1}/${MAX_RESEND})  |  累计: ${totalResends}`;
+                        await sleep(200);
+                    } else {
+                        throw new Error(`包 ${index + 1} ACK 多次超时（已重发 ${MAX_RESEND} 次），放弃`);
+                    }
+                }
+            }
+
+            if (sendAbortFlag) break;
+            if (!ackOk) throw new Error(`包 ${index + 1} 发送失败（已重发 ${MAX_RESEND} 次）`);
+
+            const percent = Math.round(((index + 1) / packetTotal) * 100);
+            setProgress(percent, `发送中 ${index + 1}/${packetTotal}${totalResends > 0 ? ' (重发' + totalResends + '次)' : ''}`);
+            await sleep(5);
+        }
+
+        if (!sendAbortFlag) {
+            setProgress(100, "图片发送完成" + (totalResends > 0 ? ` (共重发${totalResends}次)` : ''));
+            log("图片全部发送完成" + (totalResends > 0 ? `，共重发 ${totalResends} 次` : ''));
+            dom.resendInfo.textContent = totalResends > 0 ? `发送完成，累计重发: ${totalResends} 次` : '';
+            await sleep(300);
+            await writeString("EXIT");
+            log("发送 EXIT");
+        }
+    } catch (error) {
+        console.error(error);
+        log("发送失败：" + error.message);
+        if (!sendAbortFlag) {
+            setProgress(0, "发送失败");
+        }
+    } finally {
+        isSending = false;
+        sendAbortFlag = false;
+        updateSendButton();
+    }
+}
+
+function setProgress(percent, text) {
+    dom.progressBar.style.width = percent + "%";
+    dom.progressText.textContent = text;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ============================================================
+//  初始化
+// ============================================================
+clearScreenshotCanvas();
+hideCropSection();
+if (!navigator.bluetooth) {
+    log("当前浏览器不支持 Web Bluetooth。请使用 Chrome / Edge。");
+} else {
+    log("Web Bluetooth 可用");
+}
+updateSendButton();
+updateWifiButton();
+updateLedButtons();
+log("页面已加载，请选择图片");
+log("提示：图片尺寸超过 128×250 时自动启用截图（拖动红色框，松开即裁剪）");
+log("提示：图片某边小于最小尺寸时会自动补白到 128×250");
+log("功能：WiFi 配置（发送 SSID 和密码）");
+log("功能：发送图片区域已添加 order 文本框，可在发送前设置当前更新的是ESP32中的第几张图（默认0）");
+log("功能：LED 控制（通过 CTR 服务 0xEEF0 / RX 0xEEF1 发送 SET:LED_ON / SET:LED_OFF，响应走 0xEEF3 Indicate）");
+log("功能：断开按钮会先发 SET:BLE_DISCONNECT 让 ESP32 主动断开，收到 ACK+BLE_DISCONNECT 后网页再兜底断开");
+</script>
+</body>
+</html>

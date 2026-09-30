@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Web BLE UUID 枚举器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a; color: #e2e8f0;
+            min-height: 100vh; padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 {
+            text-align: center; margin-bottom: 8px; font-size: 28px;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; font-size: 14px; }
+        .card {
+            background: #1e293b; border-radius: 16px; padding: 24px;
+            margin-bottom: 20px; border: 1px solid #334155;
+        }
+        .card h2 { font-size: 16px; color: #93c5fd; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .btn {
+            padding: 12px 28px; border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .btn-danger:hover { box-shadow: 0 4px 20px rgba(239,68,68,0.4); }
+        .btn-group { display: flex; gap: 12px; flex-wrap: wrap; }
+        .status-bar {
+            display: flex; align-items: center; gap: 10px; margin-top: 16px;
+            padding: 10px 16px; background: #0f172a; border-radius: 8px; font-size: 14px;
+        }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #64748b; }
+        .status-dot.connected { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.6); animation: pulse 2s infinite; }
+        .status-dot.error { background: #ef4444; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        #log {
+            background: #0f172a; border-radius: 10px; padding: 16px;
+            font-family: 'Fira Code','Cascadia Code','Consolas',monospace;
+            font-size: 13px; line-height: 1.8; max-height: 600px;
+            overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+        }
+        #log::-webkit-scrollbar { width: 6px; }
+        #log::-webkit-scrollbar-track { background: transparent; }
+        #log::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .log-service { color: #60a5fa; font-weight: 600; }
+        .log-char { color: #a78bfa; padding-left: 24px; }
+        .log-desc { color: #94a3b8; padding-left: 48px; }
+        .log-info { color: #22d3ee; }
+        .log-success { color: #4ade80; }
+        .log-error { color: #f87171; }
+        .log-warn { color: #fbbf24; }
+        .log-time { color: #64748b; margin-right: 8px; }
+        .props-badge {
+            display: inline-block; background: #334155; color: #cbd5e1;
+            padding: 1px 6px; border-radius: 4px; font-size: 11px; margin-left: 4px;
+        }
+        .props-badge.read { background: #065f46; color: #6ee7b7; }
+        .props-badge.write { background: #7c2d12; color: #fdba74; }
+        .props-badge.notify { background: #4c1d95; color: #c4b5fd; }
+        .props-badge.indicate { background: #701a75; color: #f0abfc; }
+        .empty-state { text-align: center; color: #64748b; padding: 40px; font-size: 14px; }
+        .device-info { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 12px; margin-top: 12px; }
+        .device-info-item { background: #0f172a; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+        .device-info-item .label { color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .device-info-item .value { color: #e2e8f0; margin-top: 4px; font-weight: 500; }
+        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .toolbar .stats { font-size: 12px; color: #64748b; }
+        .uuid-note {
+            margin-top: 12px; padding: 10px 14px; background: #1a1a2e;
+            border-left: 3px solid #fbbf24; border-radius: 0 8px 8px 0;
+            font-size: 12px; color: #fbbf24; line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔗 ESP32 Web BLE UUID 枚举器</h1>
+    <p class="subtitle">针对 ESP32 自定义服务优化 · 连接后自动枚举所有 UUID</p>
+
+    <div class="card">
+        <h2>⚡ 设备连接</h2>
+        <div class="btn-group">
+            <button class="btn btn-primary" id="btnConnect" onclick="onConnectClick()">🔍 扫描并连接 ESP32</button>
+            <button class="btn btn-danger" id="btnDisconnect" onclick="onDisconnectClick()" style="display:none;">⛓️‍💥 断开连接</button>
+        </div>
+        <div class="status-bar">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">未连接</span>
+        </div>
+        <div class="device-info" id="deviceInfo" style="display:none;">
+            <div class="device-info-item"><div class="label">设备名称</div><div class="value" id="infoName">-</div></div>
+            <div class="device-info-item"><div class="label">设备 ID</div><div class="value" id="infoId">-</div></div>
+            <div class="device-info-item"><div class="label">GATT 状态</div><div class="value" id="infoGatt">-</div></div>
+        </div>
+        <div class="uuid-note">
+            💡 <b>当前配置的 ESP32 Service UUID：</b><br>
+            <code id="currentUuidDisplay"></code><br>
+            若枚举结果为空，请切换代码中的 UUID 字节序选项或使用 nRF Connect 确认实际 UUID。
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📋 UUID 枚举结果</h2>
+        <div class="toolbar">
+            <div class="stats" id="statsText">等待连接...</div>
+            <button class="btn" style="padding:6px 14px;font-size:12px;background:#334155;color:#cbd5e1;" onclick="clearLog()">清空日志</button>
+        </div>
+        <div id="log"><div class="empty-state">点击「扫描并连接 ESP32」开始</div></div>
+    </div>
+</div>
+
+<script>
+// ================================================================
+// 🔧 ESP32 UUID 配置区
+// ================================================================
+// BLE_UUID128_INIT 使用小端序，Web API 使用大端序字符串
+// 请根据实际情况选择正确的字节序解释：
+
+// 【选项 A】开发者按大端直觉填写（最常见）
+// const ESP32_SERVICE_UUID = '12345678-1234-1234-1234-123456789abc';
+// const ESP32_RX_UUID      = '12345678-1234-1234-1234-123456789abd';
+// const ESP32_TX_UUID      = '12345678-1234-1234-1234-123456789abe';
+
+// 【选项 B】严格按小端字节序转换（若选项A无效请取消下方注释并注释掉上方）
+const ESP32_SERVICE_UUID = 'bc9a7856-3412-3412-3412-341278563412';
+const ESP32_RX_UUID      = 'bd9a7856-3412-3412-3412-341278563412';
+const ESP32_TX_UUID      = 'be9a7856-3412-3412-3412-341278563412';
+
+// 显示当前使用的 UUID
+document.getElementById('currentUuidDisplay').textContent = ESP32_SERVICE_UUID;
+
+// ================================================================
+// 全局状态
+// ================================================================
+let bluetoothDevice = null;
+let gattServer = null;
+let serviceCount = 0, charCount = 0, descCount = 0;
+
+// ================================================================
+// 日志工具
+// ================================================================
+function getTimeStr() { return new Date().toTimeString().slice(0, 8); }
+
+function log(msg, type = '') {
+    const logEl = document.getElementById('log');
+    const empty = logEl.querySelector('.empty-state');
+    if (empty) empty.remove();
+    const line = document.createElement('div');
+    line.innerHTML = `<span class="log-time">[${getTimeStr()}]</span>`;
+    const span = document.createElement('span');
+    if (type) span.className = `log-${type}`;
+    span.textContent = msg;
+    line.appendChild(span);
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function logHTML(html, type = '') {
+    const logEl = document.getElementById('log');
+    const empty = logEl.querySelector('.empty-state');
+    if (empty) empty.remove();
+    const line = document.createElement('div');
+    line.innerHTML = `<span class="log-time">[${getTimeStr()}]</span>`;
+    const span = document.createElement('span');
+    if (type) span.className = `log-${type}`;
+    span.innerHTML = html;
+    line.appendChild(span);
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function clearLog() {
+    document.getElementById('log').innerHTML = '<div class="empty-state">日志已清空</div>';
+    serviceCount = charCount = descCount = 0;
+    updateStats();
+}
+
+function updateStats() {
+    document.getElementById('statsText').textContent =
+        `共发现 ${serviceCount} 个 Service, ${charCount} 个 Characteristic, ${descCount} 个 Descriptor`;
+}
+
+// ================================================================
+// 状态管理
+// ================================================================
+function setStatus(text, state = '') {
+    document.getElementById('statusText').textContent = text;
+    const dot = document.getElementById('statusDot');
+    dot.className = 'status-dot';
+    if (state) dot.classList.add(state);
+}
+
+function showDeviceInfo(device) {
+    document.getElementById('deviceInfo').style.display = 'grid';
+    document.getElementById('infoName').textContent = device.name || '未知';
+    document.getElementById('infoId').textContent = device.id || '-';
+    document.getElementById('infoGatt').textContent = device.gatt.connected ? '已连接' : '未连接';
+}
+
+function hideDeviceInfo() { document.getElementById('deviceInfo').style.display = 'none'; }
+
+function toggleButtons(connected) {
+    document.getElementById('btnConnect').style.display = connected ? 'none' : 'inline-flex';
+    document.getElementById('btnDisconnect').style.display = connected ? 'inline-flex' : 'none';
+}
+
+// ================================================================
+// 属性徽章 & UUID 格式化
+// ================================================================
+function propsBadges(char) {
+    const p = char.properties;
+    let html = '';
+    const map = {
+        read: ['read','read'], write: ['write','write'],
+        writeWithoutResponse: ['writeNoResp','write'], notify: ['notify','notify'],
+        indicate: ['indicate','indicate'], broadcast: ['broadcast',''],
+        authenticatedSignedWrites: ['signedWrite',''], reliableWrite: ['reliableWrite',''],
+        writableAuxiliaries: ['writableAux','']
+    };
+    for (const [key, [label, cls]] of Object.entries(map)) {
+        if (p[key]) html += `<span class="props-badge ${cls}">${label}</span>`;
+    }
+    return html;
+}
+
+function formatUUID(uuid) {
+    if (uuid && uuid.length === 36 && uuid.endsWith('-0000-1000-8000-00805f9b34fb')) {
+        const short = uuid.substring(4, 8);
+        return `${uuid} <span style="color:#64748b;">(0x${short.replace(/^0+/,'') || '0'})</span>`;
+    }
+    return uuid || '未知';
+}
+
+// ================================================================
+// ✅ 核心：连接与枚举（已修复 optionalServices 权限问题）
+// ================================================================
+async function onConnectClick() {
+    try {
+        if (!navigator.bluetooth) {
+            log('❌ 当前浏览器不支持 Web Bluetooth API，请使用 Chrome / Edge', 'error');
+            return;
+        }
+
+        log('🔍 正在请求蓝牙设备...', 'info');
+        setStatus('正在扫描...', '');
+
+        // 【关键修复】将 ESP32 自定义 Service UUID 放入 optionalServices
+        // Web Bluetooth 安全模型：只有在此声明的服务，连接后才有权被访问
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [
+                ESP32_SERVICE_UUID,       // ← 你的 ESP32 自定义服务
+                'generic_access',         // 标准服务（可选）
+                'device_information',     // 标准服务（可选）
+                'battery_service',        // 标准服务（可选）
+            ]
+        });
+
+        log(`✅ 已选择设备: ${bluetoothDevice.name || '未命名设备'}`, 'success');
+        showDeviceInfo(bluetoothDevice);
+
+        bluetoothDevice.addEventListener('gattserverdisconnected', () => {
+            log('⚠️ 设备已断开连接', 'warn');
+            setStatus('已断开', 'error');
+            toggleButtons(false);
+            hideDeviceInfo();
+            gattServer = null;
+        });
+
+        await connectAndEnumerate();
+
+    } catch (error) {
+        if (error.name === 'NotFoundError') {
+            log('ℹ️ 用户取消了设备选择', 'warn');
+            setStatus('未连接', '');
+        } else {
+            log(`❌ 错误: ${error.message}`, 'error');
+            setStatus('连接失败', 'error');
+        }
+        console.error(error);
+    }
+}
+
+async function connectAndEnumerate() {
+    try {
+        document.getElementById('btnConnect').disabled = true;
+        setStatus('正在连接 GATT Server...', '');
+        log('📡 正在建立 GATT 连接...', 'info');
+
+        gattServer = await bluetoothDevice.gatt.connect();
+        log('✅ GATT 连接成功！开始枚举 UUID...', 'success');
+        setStatus('已连接', 'connected');
+        toggleButtons(true);
+        document.getElementById('infoGatt').textContent = '已连接';
+
+        serviceCount = charCount = descCount = 0;
+
+        log('', '');
+        log('━━━━━━ 开始枚举 ━━━━━━', 'info');
+
+        // getPrimaryServices() 仅返回 optionalServices 中已授权的服务
+        const services = await gattServer.getPrimaryServices();
+        log(`📦 共发现 ${services.length} 个 Primary Service`, 'info');
+
+        if (services.length === 0) {
+            log('⚠️ 未发现任何服务！可能原因：', 'warn');
+            log('   1. ESP32 Service UUID 字节序不正确，请切换选项A/B', 'warn');
+            log('   2. optionalServices 中未包含目标服务 UUID', 'warn');
+            log('   3. 设备未正确广播 GATT 服务', 'warn');
+        }
+
+        log('', '');
+
+        for (let i = 0; i < services.length; i++) {
+            const service = services[i];
+            serviceCount++;
+            logHTML(`📦 <b>Service #${i+1}</b>: ${formatUUID(service.uuid)}`, 'service');
+
+            try {
+                const characteristics = await service.getCharacteristics();
+                log(`   共 ${characteristics.length} 个 Characteristic`, 'info');
+
+                for (let j = 0; j < characteristics.length; j++) {
+                    const char = characteristics[j];
+                    charCount++;
+                    logHTML(`   ↳ <b>Char #${j+1}</b>: ${formatUUID(char.uuid)} ${propsBadges(char)}`, 'char');
+
+                    try {
+                        const descriptors = await char.getDescriptors();
+                        for (let k = 0; k < descriptors.length; k++) {
+                            descCount++;
+                            logHTML(`      ↳ <b>Desc #${k+1}</b>: ${formatUUID(descriptors[k].uuid)}`, 'desc');
+                        }
+                    } catch (descErr) {
+                        log(`      ↳ (无法获取描述符: ${descErr.message})`, 'warn');
+                    }
+                }
+            } catch (charErr) {
+                log(`   ⚠️ 无法获取特征值: ${charErr.message}`, 'warn');
+            }
+            log('', '');
+        }
+
+        log('━━━━━━━━━━━━━━━━━━━━━━', 'info');
+        log('🎉 枚举完成！', 'success');
+        log(`   • Service:       ${serviceCount} 个`, 'success');
+        log(`   • Characteristic: ${charCount} 个`, 'success');
+        log(`   • Descriptor:     ${descCount} 个`, 'success');
+        updateStats();
+
+    } catch (error) {
+        log(`❌ 连接/枚举失败: ${error.message}`, 'error');
+        setStatus('连接失败', 'error');
+        toggleButtons(false);
+        console.error(error);
+    } finally {
+        document.getElementById('btnConnect').disabled = false;
+    }
+}
+
+// ================================================================
+// 断开连接
+// ================================================================
+function onDisconnectClick() {
+    try {
+        if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+            bluetoothDevice.gatt.disconnect();
+            log('🔌 已主动断开连接', 'warn');
+        }
+    } catch (e) { log(`⚠️ 断开时出错: ${e.message}`, 'warn'); }
+    setStatus('已断开', 'error');
+    toggleButtons(false);
+    hideDeviceInfo();
+    gattServer = null;
+}
+
+// ================================================================
+// 页面加载检测
+// ================================================================
+window.addEventListener('DOMContentLoaded', () => {
+    if (!navigator.bluetooth) {
+        log('⚠️ 当前环境不支持 Web Bluetooth API', 'error');
+        log('   请使用 Chrome 56+ / Edge 79+ / Opera 43+', 'warn');
+        log('   需要 HTTPS 或 localhost 环境', 'warn');
+        document.getElementById('btnConnect').disabled = true;
+    } else {
+        log('✅ Web Bluetooth API 可用', 'success');
+        log(`📌 ESP32 Service UUID: ${ESP32_SERVICE_UUID}`, 'info');
+        // log(`📌 ESP32 RX Char UUID: ${ESP32_RX_UUID}`, 'info');
+        // log(`📌 ESP32 TX Char UUID: ${ESP32_TX_UUID}`, 'info');
+        log('   请点击上方按钮扫描并连接 ESP32 设备', 'success');
+    }
+});
+</script>
+</body>
+</html>
